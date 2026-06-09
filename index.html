@@ -537,13 +537,28 @@ let previewingId = null; // card currently in preview mode
 
 // ===== AUTH =====
 window.onload = () => {
-  setTimeout(() => {
-    if (window.google && google.accounts) initTokenClient();
-  }, 500);
-  const saved = localStorage.getItem('yt_token');
-  if (saved) { accessToken = saved; onLoggedIn(); }
   switchTab('home');
   renderQueue();
+  // Google SDK読み込み完了を待ってからトークン確認
+  const tryInit = () => {
+    if (window.google && google.accounts && google.accounts.oauth2) {
+      initTokenClient();
+      const saved = localStorage.getItem('yt_token');
+      const expiry = parseInt(localStorage.getItem('yt_token_expiry') || '0');
+      if (saved && Date.now() < expiry) {
+        accessToken = saved;
+        onLoggedIn();
+      } else {
+        // 期限切れか未ログイン→削除
+        localStorage.removeItem('yt_token');
+        localStorage.removeItem('yt_token_expiry');
+        if (saved) showToast('セッション期限切れです。再ログインしてください');
+      }
+    } else {
+      setTimeout(tryInit, 300);
+    }
+  };
+  setTimeout(tryInit, 300);
 };
 
 function initTokenClient() {
@@ -553,6 +568,7 @@ function initTokenClient() {
       if (resp.error) { showToast('ログイン失敗: ' + resp.error); return; }
       accessToken = resp.access_token;
       localStorage.setItem('yt_token', accessToken);
+      localStorage.setItem('yt_token_expiry', Date.now() + 55 * 60 * 1000); // 55分
       onLoggedIn();
     }
   });
@@ -563,7 +579,7 @@ function handleLogin() {
 }
 function handleLogout() {
   if (accessToken) google.accounts.oauth2.revoke(accessToken);
-  accessToken = null; localStorage.removeItem('yt_token');
+  accessToken = null; localStorage.removeItem('yt_token'); localStorage.removeItem('yt_token_expiry');
   subscriptions = []; recentVideos = [];
   document.getElementById('btn-login').style.display = '';
   document.getElementById('btn-logout').style.display = 'none';
