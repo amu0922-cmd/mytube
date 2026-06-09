@@ -868,19 +868,41 @@ function stopPreview() {
 }
 
 // ===== RENDER =====
+function chItemHTML(ch) {
+  var d = document.createElement('div');
+  d.className = 'channel-item';
+  d.setAttribute('onclick', 'loadChannelVideos("' + ch.id + '","' + escAttr(ch.name) + '")');
+  var icon = document.createElement('div');
+  icon.className = 'ch-icon';
+  if (ch.thumb) {
+    var img = document.createElement('img');
+    img.src = ch.thumb; img.alt = '';
+    img.onerror = function() { this.parentNode.textContent = '📺'; };
+    icon.appendChild(img);
+  } else {
+    icon.textContent = '📺';
+  }
+  var info = document.createElement('div');
+  info.className = 'ch-info';
+  var name = document.createElement('div');
+  name.className = 'ch-name';
+  name.textContent = ch.name;
+  info.appendChild(name);
+  var ytLink = document.createElement('a');
+  ytLink.className = 'btn-yt';
+  ytLink.href = 'https://www.youtube.com/channel/' + ch.id;
+  ytLink.target = '_blank';
+  ytLink.textContent = '▶ YT';
+  ytLink.setAttribute('onclick', 'event.stopPropagation()');
+  d.appendChild(icon); d.appendChild(info); d.appendChild(ytLink);
+  return d;
+}
+
 function renderChannels() {
   const el = document.getElementById('channel-list');
+  el.innerHTML = '';
   if (!subscriptions.length) { el.innerHTML = '<div class="empty">チャンネルが見つかりません</div>'; return; }
-  el.innerHTML = subscriptions.map(function(ch) {
-    const icon = ch.thumb
-      ? '<img src="' + ch.thumb + '" alt="" onerror="this.parentNode.innerHTML='<div class=ch-ph>📺</div>'">'
-      : '<div class="ch-ph">📺</div>';
-    return '<div class="channel-item" onclick="loadChannelVideos('' + ch.id + '','' + escAttr(ch.name) + '')">'
-      + '<div class="ch-icon">' + icon + '</div>'
-      + '<div class="ch-info"><div class="ch-name">' + escHtml(ch.name) + '</div></div>'
-      + '<a class="btn-yt" href="https://www.youtube.com/channel/' + ch.id + '" target="_blank" onclick="event.stopPropagation()">▶ YT</a>'
-      + '</div>';
-  }).join('');
+  subscriptions.forEach(function(ch) { el.appendChild(chItemHTML(ch)); });
 }
 
 function renderQueue() {
