@@ -598,18 +598,36 @@ async function onLoggedIn() {
   document.getElementById('channels-login-gate').style.display = 'none';
   document.getElementById('channels-content').style.display = '';
 
-  // ローディング表示
-  document.getElementById('recent-videos').innerHTML = '<div class="loading"><div class="spinner"></div>チャンネルを取得中…</div>';
+  const recentEl = document.getElementById('recent-videos');
+  recentEl.innerHTML = '<div class="loading"><div class="spinner"></div>ログイン確認中…</div>';
 
+  // userinfo でトークン有効性確認
   try {
     const r = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', { headers: { Authorization: `Bearer ${accessToken}` } });
+    if (!r.ok) {
+      recentEl.innerHTML = `<div class="empty">トークンエラー (${r.status})<br>ログアウトして再ログインしてください</div>`;
+      handleLogout();
+      return;
+    }
     const u = await r.json();
     if (u.picture) { const av = document.getElementById('user-avatar'); av.src = u.picture; av.style.display = ''; }
-  } catch {}
+    recentEl.innerHTML = '<div class="loading"><div class="spinner"></div>チャンネルを取得中…</div>';
+  } catch(e) {
+    recentEl.innerHTML = `<div class="empty">通信エラー: ${e.message}</div>`;
+    return;
+  }
 
-  // チャンネル取得を完全に待つ
-  await loadSubscriptions();
-  // チャンネル取得完了後に動画取得
+  // チャンネル取得
+  try {
+    await loadSubscriptions();
+  } catch(e) {
+    recentEl.innerHTML = `<div class="empty">チャンネル取得エラー: ${e.message}</div>`;
+    return;
+  }
+
+  recentEl.innerHTML = `<div class="loading"><div class="spinner"></div>動画を取得中… (${subscriptions.length}チャンネル)</div>`;
+
+  // 動画取得
   await loadRecentVideos();
 }
 
@@ -696,6 +714,7 @@ async function loadSubscriptions() {
     renderChannels();
   } catch (e) {
     showToast('チャンネル取得失敗: ' + e.message);
+    throw e;
   }
 }
 
