@@ -397,179 +397,7 @@
     border-radius: 8px; pointer-events: none;
   }
 
-  /* ===== TIKTOK MODE ===== */
-  #tiktok-container {
-    position: fixed;
-    inset: 0;
-    background: #000;
-    z-index: 100;
-    overflow: hidden;
-    display: none;
-    touch-action: pan-y;
-  }
-  #page-trend.active-trend #tiktok-container { display: block; }
-
-  #tiktok-feed {
-    width: 100%;
-    height: 100%;
-    position: relative;
-  }
-
-  .tiktok-slide {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: #000;
-    transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-    will-change: transform;
-  }
-
-  .tiktok-slide iframe {
-    width: 100%;
-    height: 100%;
-    border: none;
-    position: absolute;
-    inset: 0;
-  }
-
-  .tiktok-slide .slide-thumb {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    filter: blur(2px) brightness(0.6);
-  }
-
-  .tiktok-slide .play-icon {
-    position: relative;
-    font-size: 64px;
-    opacity: 0.8;
-    z-index: 2;
-  }
-
-  .tiktok-loading {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    background: #000;
-    z-index: 10;
-  }
-
-  #tiktok-overlay {
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    z-index: 20;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-end;
-    padding: calc(var(--safe-top) + 16px) 16px calc(var(--safe-bottom) + 80px);
-  }
-
-  #tiktok-rank {
-    position: absolute;
-    top: calc(var(--safe-top) + 16px);
-    left: 16px;
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 28px;
-    font-weight: 700;
-    color: #fff;
-    text-shadow: 0 2px 8px rgba(0,0,0,0.5);
-  }
-
-  #tiktok-info {
-    margin-bottom: 8px;
-  }
-
-  #tiktok-title {
-    font-size: 14px;
-    font-weight: 600;
-    color: #fff;
-    line-height: 1.4;
-    text-shadow: 0 1px 6px rgba(0,0,0,0.7);
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    margin-bottom: 4px;
-  }
-
-  #tiktok-channel {
-    font-size: 12px;
-    color: rgba(255,255,255,0.75);
-    text-shadow: 0 1px 4px rgba(0,0,0,0.7);
-  }
-
-  #tiktok-hint {
-    font-size: 11px;
-    color: rgba(255,255,255,0.5);
-    text-align: center;
-    animation: fadeout 3s forwards;
-    animation-delay: 3s;
-  }
-  @keyframes fadeout { to { opacity: 0; } }
-
-  /* close button for tiktok */
-  #tiktok-close {
-    position: absolute;
-    top: calc(var(--safe-top) + 14px);
-    right: 16px;
-    width: 36px; height: 36px;
-    background: rgba(0,0,0,0.5);
-    border: none;
-    border-radius: 50%;
-    color: #fff;
-    font-size: 18px;
-    display: flex; align-items: center; justify-content: center;
-    cursor: pointer;
-    pointer-events: all;
-    z-index: 30;
-    backdrop-filter: blur(4px);
-  }
-
-  /* progress dots */
-  #tiktok-dots {
-    position: absolute;
-    right: 12px;
-    top: 50%;
-    transform: translateY(-50%);
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    z-index: 25;
-    pointer-events: none;
-  }
-  .t-dot {
-    width: 4px; height: 4px;
-    border-radius: 2px;
-    background: rgba(255,255,255,0.3);
-    transition: all 0.2s;
-  }
-  .t-dot.active {
-    height: 16px;
-    background: #fff;
-  }
-
-  /* open tiktok button */
-  #tiktok-enter {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 16px;
-    padding: 40px 24px;
-    min-height: 300px;
-  }
-
-</style>
+  </style>
 </head>
 <body>
 
@@ -625,25 +453,11 @@
 
   <!-- TREND -->
   <div id="page-trend" style="display:none">
-    <div id="tiktok-container">
-      <div id="swipe-overlay" style="position:absolute;inset:0;z-index:50;display:none;"></div>
-      <div id="tiktok-loading" class="tiktok-loading">
-        <div class="spinner" style="border-top-color:#fff"></div>
-        <div style="color:#fff;font-size:13px;margin-top:12px">トレンドを読み込み中…</div>
-      </div>
-      <div id="tiktok-feed"></div>
-      <button id="tiktok-close" onclick="closeTiktok()">✕</button>
-      <div id="tiktok-dots"></div>
-      <!-- overlay UI -->
-      <div id="tiktok-overlay">
-        <div id="tiktok-rank"></div>
-        <div id="tiktok-info">
-          <div id="tiktok-title"></div>
-          <div id="tiktok-channel"></div>
-        </div>
-        <div id="tiktok-hint">↕ スワイプで切り替え</div>
-      </div>
+    <div class="section-hd">
+      <h3>🇯🇵 日本のトレンド Top100</h3>
+      <a onclick="loadTrend()">更新</a>
     </div>
+    <div id="trend-videos"></div>
   </div>
 
   <!-- SEARCH -->
@@ -796,19 +610,13 @@ async function apiGet(endpoint, params = {}) {
 }
 
 // ===== TREND =====
-// ===== TIKTOK / TREND =====
-let trendVideos = [];
-let tiktokIndex = 0;
-let tiktokLoaded = false;
-let touchStartY = 0;
-let touchStartX = 0;
-let touchDeltaY = 0;
-let isSwiping = false;
+let trendLoaded = false;
 
 async function loadTrend() {
   if (!accessToken) { showToast('ログインが必要です'); return; }
-  document.getElementById('tiktok-loading').style.display = '';
-  document.getElementById('tiktok-feed').innerHTML = '';
+  const el = document.getElementById('trend-videos');
+  el.innerHTML = '<div class="loading"><div class="spinner"></div>Top100を取得中…</div>';
+  trendLoaded = true;
   try {
     const allVideos = [];
     const d1 = await apiGet('/videos', { part: 'snippet', chart: 'mostPopular', regionCode: 'JP', maxResults: 50 });
@@ -817,177 +625,18 @@ async function loadTrend() {
       const d2 = await apiGet('/videos', { part: 'snippet', chart: 'mostPopular', regionCode: 'JP', maxResults: 50, pageToken: d1.nextPageToken });
       (d2.items || []).forEach(item => allVideos.push(item));
     }
-    trendVideos = allVideos.map((item, i) => ({
+    const videos = allVideos.map((item, i) => ({
       id: item.id, title: item.snippet.title,
       channel: item.snippet.channelTitle,
-      thumb: item.snippet.thumbnails?.maxres?.url || item.snippet.thumbnails?.high?.url || item.snippet.thumbnails?.medium?.url || '',
+      thumb: item.snippet.thumbnails?.medium?.url || item.snippet.thumbnails?.default?.url || '',
+      date: item.snippet.publishedAt,
       rank: i + 1
     }));
-    tiktokIndex = 0;
-    tiktokLoaded = true;
-    document.getElementById('tiktok-loading').style.display = 'none';
-    buildTiktokSlides();
-    updateTiktokOverlay();
-    setupTiktokDots();
+    el.innerHTML = `<div class="video-grid">${videos.map(v => gridCardHTML(v, true)).join('')}</div>`;
   } catch (e) {
-    document.getElementById('tiktok-loading').innerHTML = `<div style="color:#fff;font-size:13px">取得失敗: ${e.message}</div>`;
+    trendLoaded = false;
+    el.innerHTML = `<div class="empty">取得失敗: ${e.message}</div>`;
   }
-}
-
-let playingSlideIndex = -1;
-
-function buildTiktokSlides() {
-  const feed = document.getElementById('tiktok-feed');
-  feed.innerHTML = '';
-  trendVideos.forEach((v, i) => {
-    const slide = document.createElement('div');
-    slide.className = 'tiktok-slide';
-    slide.id = `slide-${i}`;
-    slide.style.transform = i === 0 ? 'translateY(0)' : `translateY(${i * 100}%)`;
-    renderSlideThumb(slide, v, i);
-    feed.appendChild(slide);
-  });
-}
-
-function renderSlideThumb(slide, v, i) {
-  slide.innerHTML = `
-    <img class="slide-thumb" src="${v.thumb}" alt="" style="filter:blur(0) brightness(0.75)">
-    <div style="position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;gap:12px">
-      <div style="width:72px;height:72px;border-radius:50%;border:3px solid rgba(255,255,255,0.8);overflow:hidden">
-        <img src="${v.thumb}" style="width:100%;height:100%;object-fit:cover">
-      </div>
-      <div style="background:rgba(255,0,64,0.9);border-radius:50%;width:56px;height:56px;display:flex;align-items:center;justify-content:center;font-size:24px;cursor:pointer" onclick="playTiktokVideo(${i})">▶</div>
-    </div>`;
-}
-
-function playTiktokVideo(i) {
-  const slide = document.getElementById(`slide-${i}`);
-  const v = trendVideos[i];
-  playingSlideIndex = i;
-  slide.innerHTML = `
-    <iframe src="https://www.youtube.com/embed/${v.id}?autoplay=1&rel=0&playsinline=1"
-      allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen
-      style="position:absolute;inset:0;width:100%;height:100%;border:none;z-index:1"></iframe>
-    <div id="swipe-capture-${i}" style="position:absolute;inset:0;z-index:2;background:transparent"></div>`;
-  // swipe-captureのタッチでスワイプ処理
-  const cap = document.getElementById(`swipe-capture-${i}`);
-  cap.addEventListener('touchstart', e => { onTiktokTouchStart(e); }, { passive: true });
-  cap.addEventListener('touchmove', e => { onTiktokTouchMove(e); }, { passive: false });
-  cap.addEventListener('touchend', e => { onTiktokTouchEnd(e); }, { passive: true });
-}
-
-function preloadAdjacent(i) {
-  // サムネが既にある場合は何もしない（スワイプ後に表示するだけ）
-}
-
-function goToSlide(newIndex, dir) {
-  if (newIndex < 0 || newIndex >= trendVideos.length) return;
-  const oldSlide = document.getElementById(`slide-${tiktokIndex}`);
-  const newSlide = document.getElementById(`slide-${newIndex}`);
-  // 古いスライドをサムネに戻す
-  if (oldSlide) {
-    renderSlideThumb(oldSlide, trendVideos[tiktokIndex], tiktokIndex);
-    oldSlide.style.transform = `translateY(${dir < 0 ? 100 : -100}%)`;
-  }
-  if (newSlide) newSlide.style.transform = 'translateY(0)';
-  tiktokIndex = newIndex;
-  playingSlideIndex = -1;
-  updateTiktokOverlay();
-  updateTiktokDots();
-}
-
-function updateTiktokOverlay() {
-  const v = trendVideos[tiktokIndex];
-  if (!v) return;
-  const rankMap = ['🥇','🥈','🥉'];
-  document.getElementById('tiktok-rank').textContent = v.rank <= 3 ? rankMap[v.rank-1] : `#${v.rank}`;
-  document.getElementById('tiktok-title').textContent = v.title;
-  document.getElementById('tiktok-channel').textContent = v.channel;
-}
-
-function setupTiktokDots() {
-  const MAX_DOTS = 20;
-  const dots = document.getElementById('tiktok-dots');
-  if (!dots) return;
-  const count = Math.min(trendVideos.length, MAX_DOTS);
-  dots.innerHTML = Array.from({length: count}, (_, i) =>
-    `<div class="t-dot ${i===0?'active':''}" id="dot-${i}"></div>`).join('');
-}
-
-function updateTiktokDots() {
-  const MAX_DOTS = 20;
-  document.querySelectorAll('.t-dot').forEach((d, i) => {
-    d.classList.toggle('active', i === Math.min(tiktokIndex, MAX_DOTS - 1));
-  });
-}
-
-let tiktokTouchSetup = false;
-function setupTiktokTouch() {
-  if (tiktokTouchSetup) return;
-  tiktokTouchSetup = true;
-  // Use document-level listeners so iframe doesn't block events
-  document.addEventListener('touchstart', onTiktokTouchStart, { passive: true });
-  document.addEventListener('touchmove', onTiktokTouchMove, { passive: false });
-  document.addEventListener('touchend', onTiktokTouchEnd, { passive: true });
-}
-
-function isTiktokActive() {
-  return currentTab === 'trend';
-}
-
-function onTiktokTouchStart(e) {
-  if (!isTiktokActive()) return;
-  touchStartY = e.touches[0].clientY;
-  touchStartX = e.touches[0].clientX;
-  isSwiping = true;
-  touchDeltaY = 0;
-  // show swipe overlay to capture touch from iframe
-  const overlay = document.getElementById('swipe-overlay');
-  if (overlay) overlay.style.display = 'block';
-}
-
-function onTiktokTouchMove(e) {
-  if (!isTiktokActive() || !isSwiping) return;
-  const dy = e.touches[0].clientY - touchStartY;
-  const dx = e.touches[0].clientX - touchStartX;
-  // only handle vertical swipes
-  if (Math.abs(dx) > Math.abs(dy) + 10) { isSwiping = false; return; }
-  e.preventDefault();
-  touchDeltaY = dy;
-  const cur = document.getElementById(`slide-${tiktokIndex}`);
-  if (cur) { cur.style.transition = 'none'; cur.style.transform = `translateY(${dy}px)`; }
-  if (dy < 0 && tiktokIndex < trendVideos.length - 1) {
-    const next = document.getElementById(`slide-${tiktokIndex+1}`);
-    if (next) { next.style.transition = 'none'; next.style.transform = `translateY(calc(100% + ${dy}px))`; }
-  } else if (dy > 0 && tiktokIndex > 0) {
-    const prev = document.getElementById(`slide-${tiktokIndex-1}`);
-    if (prev) { prev.style.transition = 'none'; prev.style.transform = `translateY(calc(-100% + ${dy}px))`; }
-  }
-}
-
-function onTiktokTouchEnd() {
-  if (!isTiktokActive() || !isSwiping) return;
-  isSwiping = false;
-  const overlay = document.getElementById('swipe-overlay');
-  if (overlay) overlay.style.display = 'none';
-  const threshold = window.innerHeight * 0.18;
-  document.querySelectorAll('.tiktok-slide').forEach(s => s.style.transition = '');
-  if (touchDeltaY < -threshold) {
-    goToSlide(tiktokIndex + 1, 1);
-  } else if (touchDeltaY > threshold) {
-    goToSlide(tiktokIndex - 1, -1);
-  } else {
-    const cur = document.getElementById(`slide-${tiktokIndex}`);
-    if (cur) cur.style.transform = 'translateY(0)';
-    if (touchDeltaY < 0 && tiktokIndex < trendVideos.length - 1) {
-      const next = document.getElementById(`slide-${tiktokIndex+1}`);
-      if (next) next.style.transform = 'translateY(100%)';
-    } else if (touchDeltaY > 0 && tiktokIndex > 0) {
-      const prev = document.getElementById(`slide-${tiktokIndex-1}`);
-      if (prev) prev.style.transform = 'translateY(-100%)';
-    }
-  }
-  touchDeltaY = 0;
 }
 
 // ===== SEARCH =====
@@ -1011,20 +660,27 @@ async function doSearch() {
 }
 
 // ===== SUBSCRIPTIONS =====
-async function loadSubscriptions(pageToken = '', append = false) {
+async function loadSubscriptions() {
+  subscriptions = [];
+  let pageToken = '';
   try {
-    const params = { part: 'snippet', mine: true, maxResults: 50, order: 'alphabetical' };
-    if (pageToken) params.pageToken = pageToken;
-    const data = await apiGet('/subscriptions', params);
-    const items = (data.items || []).map(i => ({
-      id: i.snippet.resourceId.channelId,
-      name: i.snippet.title,
-      thumb: i.snippet.thumbnails?.default?.url || ''
-    }));
-    subscriptions = append ? [...subscriptions, ...items] : items;
-    if (data.nextPageToken) await loadSubscriptions(data.nextPageToken, true);
-    else renderChannels();
-  } catch (e) { showToast('チャンネル取得失敗: ' + e.message); }
+    while (true) {
+      const params = { part: 'snippet', mine: true, maxResults: 50, order: 'alphabetical' };
+      if (pageToken) params.pageToken = pageToken;
+      const data = await apiGet('/subscriptions', params);
+      const items = (data.items || []).map(i => ({
+        id: i.snippet.resourceId.channelId,
+        name: i.snippet.title,
+        thumb: i.snippet.thumbnails?.default?.url || ''
+      }));
+      subscriptions = [...subscriptions, ...items];
+      if (data.nextPageToken) pageToken = data.nextPageToken;
+      else break;
+    }
+    renderChannels();
+  } catch (e) {
+    showToast('チャンネル取得失敗: ' + e.message);
+  }
 }
 
 async function loadRecentVideos() {
@@ -1413,10 +1069,6 @@ function removeFromQueue(i) {
 function clearQueue() { queue = []; currentVidIndex = -1; renderQueue(); showToast('キューを削除しました'); }
 function shuffleQueue() { queue = shuffle(queue); currentVidIndex = -1; renderQueue(); showToast('シャッフルしました'); }
 
-function closeTiktok() {
-  switchTab('home');
-}
-
 // ===== TABS =====
 function switchTab(tab) {
   stopPreview();
@@ -1427,16 +1079,7 @@ function switchTab(tab) {
   document.querySelectorAll('.tab').forEach((el, i) => {
     el.classList.toggle('active', ['home','trend','search','channels','history','queue'][i] === tab);
   });
-  if (tab === 'trend') {
-    const page = document.getElementById('page-trend');
-    page.classList.add('active-trend');
-    document.getElementById('tiktok-container').style.display = 'block';
-    if (!tiktokLoaded) loadTrend();
-    setupTiktokTouch();
-  } else {
-    const page = document.getElementById('page-trend');
-    page.classList.remove('active-trend');
-  }
+  if (tab === 'trend' && !trendLoaded) loadTrend();
   if (tab === 'history') renderHistory();
 }
 
