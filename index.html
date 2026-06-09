@@ -616,16 +616,16 @@ async function onLoggedIn() {
   document.getElementById('channels-content').style.display = '';
 
   const recentEl = document.getElementById('recent-videos');
-  recentEl.innerHTML = '<div class="loading"><div class="spinner"></div>ログイン確認中…</div>';
-
-  // チャンネル取得
   recentEl.innerHTML = '<div class="loading"><div class="spinner"></div>チャンネルを取得中…</div>';
-  await loadSubscriptions();
+  dbg('onLoggedIn: calling loadSubscriptions');
 
-  recentEl.innerHTML = `<div class="loading"><div class="spinner"></div>動画を取得中… (登録${subscriptions.length}ch)</div>`;
+  try { await loadSubscriptions(); } catch(e) { dbg('sub threw: ' + e.message); }
 
-  // 動画取得
-  await loadRecentVideos();
+  dbg('after loadSubscriptions: ' + subscriptions.length + 'ch');
+  recentEl.innerHTML = `<div class="loading"><div class="spinner"></div>動画を取得中… (${subscriptions.length}ch)</div>`;
+
+  try { await loadRecentVideos(); } catch(e) { dbg('recent threw: ' + e.message); }
+  dbg('onLoggedIn done');
 }
 
 // ===== API =====
@@ -714,7 +714,6 @@ async function loadSubscriptions() {
   } catch (e) {
     dbg('loadSub catch: ' + e.message);
     showToast('チャンネル取得失敗: ' + e.message);
-    throw e;
   }
   // renderはtryの外で
   try {
