@@ -289,6 +289,13 @@
   .ch-info { flex: 1; min-width: 0; }
   .ch-name { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .ch-arrow { color: var(--text3); font-size: 18px; }
+  .btn-yt {
+    background: #ff0000; color: #fff; border: none;
+    border-radius: 8px; padding: 6px 10px;
+    font-size: 11px; font-weight: 700; cursor: pointer;
+    white-space: nowrap; flex-shrink: 0;
+    text-decoration: none; display: inline-flex; align-items: center; gap: 4px;
+  }
 
   /* QUEUE */
   #page-queue { padding: 16px; }
@@ -382,6 +389,13 @@
   /* HOME */
   #page-home { padding-bottom: 20px; }
   #page-search { padding-bottom: 20px; }
+
+  .resume-badge {
+    position: absolute; bottom: 4px; left: 4px;
+    background: rgba(255,0,64,0.88); color: #fff;
+    font-size: 10px; font-weight: 700; padding: 2px 7px;
+    border-radius: 8px; pointer-events: none;
+  }
 </style>
 </head>
 <body>
@@ -400,6 +414,7 @@
   <button class="tab" onclick="switchTab('trend')">🏆 トレンド</button>
   <button class="tab" onclick="switchTab('search')">🔍 検索</button>
   <button class="tab" onclick="switchTab('channels')">チャンネル</button>
+  <button class="tab" onclick="switchTab('history')">🕐 履歴</button>
   <button class="tab" onclick="switchTab('queue')">キュー</button>
 </div>
 
@@ -470,6 +485,16 @@
       </div>
       <div id="channel-list" class="channel-list" style="padding:0 16px"></div>
     </div>
+  </div>
+
+
+  <!-- HISTORY -->
+  <div id="page-history" style="display:none">
+    <div class="section-hd">
+      <h3>視聴履歴</h3>
+      <a onclick="clearHistory()">🗑 全削除</a>
+    </div>
+    <div id="history-list"></div>
   </div>
 
   <!-- QUEUE -->
@@ -560,7 +585,7 @@ async function onLoggedIn() {
     const u = await r.json();
     if (u.picture) { const av = document.getElementById('user-avatar'); av.src = u.picture; av.style.display = ''; }
   } catch {}
-  loadSubscriptions();
+  await loadSubscriptions();
   loadRecentVideos();
 }
 
@@ -580,13 +605,18 @@ async function apiGet(endpoint, params = {}) {
 async function loadTrend() {
   if (!accessToken) { showToast('ログインが必要です'); return; }
   const el = document.getElementById('trend-videos');
-  el.innerHTML = '<div class="loading"><div class="spinner"></div>トレンドを取得中…</div>';
+  el.innerHTML = '<div class="loading"><div class="spinner"></div>トレンドTop100を取得中…</div>';
   try {
-    const data = await apiGet('/videos', {
-      part: 'snippet', chart: 'mostPopular',
-      regionCode: 'JP', maxResults: 20
-    });
-    const videos = (data.items || []).map((item, i) => ({
+    const allVideos = [];
+    // fetch page 1 (50件)
+    const d1 = await apiGet('/videos', { part: 'snippet', chart: 'mostPopular', regionCode: 'JP', maxResults: 50 });
+    (d1.items || []).forEach(item => allVideos.push(item));
+    // fetch page 2 (next 50件)
+    if (d1.nextPageToken) {
+      const d2 = await apiGet('/videos', { part: 'snippet', chart: 'mostPopular', regionCode: 'JP', maxResults: 50, pageToken: d1.nextPageToken });
+      (d2.items || []).forEach(item => allVideos.push(item));
+    }
+    const videos = allVideos.map((item, i) => ({
       id: item.id, title: item.snippet.title,
       channel: item.snippet.channelTitle,
       thumb: item.snippet.thumbnails?.medium?.url || item.snippet.thumbnails?.default?.url || '',
@@ -633,7 +663,7 @@ async function loadSubscriptions(pageToken = '', append = false) {
     subscriptions = append ? [...subscriptions, ...items] : items;
     if (data.nextPageToken) await loadSubscriptions(data.nextPageToken, true);
     else renderChannels();
-  } catch (e) { showToast('チャンネル取得失敗: ' + e.message); renderChannels(); }
+  } catch (e) { showToast('チャンネル取得失敗: ' + e.message); }
 }
 
 async function loadRecentVideos() {
@@ -787,7 +817,7 @@ function renderChannels() {
     <div class="channel-item" onclick="loadChannelVideos('${ch.id}','${escAttr(ch.name)}')">
       <div class="ch-icon">${ch.thumb ? `<img src="${ch.thumb}" alt="" onerror="this.parentNode.innerHTML='<div class=ch-ph>📺</div>'">` : `<div class="ch-ph">📺</div>`}</div>
       <div class="ch-info"><div class="ch-name">${escHtml(ch.name)}</div></div>
-      <div class="ch-arrow">›</div>
+      <a class="btn-yt" href="https://www.youtube.com/channel/${ch.id}" target="_blank" onclick="event.stopPropagation()">▶ YT</a>
     </div>`).join('');
 }
 
@@ -806,20 +836,170 @@ function renderQueue() {
 }
 
 // ===== PLAYER =====
-function playVideo(id, title, channel = '') {
+// ===== HISTORY =====
+const HISTORY_KEY = 'mytube_history';
+const RESUME_KEY = 'mytube_resume';
+const MAX_HISTORY = 100;
+
+function getHistory() {
+  try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); } catch { return []; }
+}
+function saveHistory(id, title, channel, thumb) {
+  let h = getHistory().filter(v => v.id !== id); // remove duplicate
+  h.unshift({ id, title, channel, thumb, watchedAt: Date.now() });
+  if (h.length > MAX_HISTORY) h = h.slice(0, MAX_HISTORY);
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(h));
+  if (currentTab === 'history') renderHistory();
+}
+function clearHistory() {
+  localStorage.removeItem(HISTORY_KEY);
+  renderHistory();
+  showToast('履歴を削除しました');
+}
+function removeHistoryItem(id) {
+  const h = getHistory().filter(v => v.id !== id);
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(h));
+  renderHistory();
+}
+function renderHistory() {
+  const el = document.getElementById('history-list');
+  const h = getHistory();
+  if (!h.length) { el.innerHTML = '<div class="empty">視聴履歴がありません</div>'; return; }
+  el.innerHTML = h.map(v => {
+    const resume = getResume(v.id);
+    const resumeStr = resume > 5 ? `<span class="resume-badge">▶ ${formatSeconds(resume)}から</span>` : '';
+    return `
+    <div class="video-list-card" data-id="${v.id}" data-title="${escAttr(v.title)}" data-ch="${escAttr(v.channel)}" onclick="handleCardTap(this)">
+      <div class="list-thumb-wrap" style="position:relative">
+        ${v.thumb ? `<img src="${v.thumb}" alt="" loading="lazy">` : '<div class="thumb-ph" style="font-size:18px">▶</div>'}
+        ${resumeStr}
+      </div>
+      <div class="list-meta">
+        <div class="list-title">${escHtml(v.title)}</div>
+        <div class="list-channel">${escHtml(v.channel || '')}</div>
+        <div class="list-date">${formatAgo(v.watchedAt)}</div>
+      </div>
+      <button class="q-del" onclick="event.stopPropagation();removeHistoryItem('${v.id}')">✕</button>
+    </div>`;
+  }).join('');
+}
+
+// ===== RESUME =====
+function getResume(id) {
+  try {
+    const d = JSON.parse(localStorage.getItem(RESUME_KEY) || '{}');
+    return d[id] || 0;
+  } catch { return 0; }
+}
+function saveResume(id, seconds) {
+  try {
+    const d = JSON.parse(localStorage.getItem(RESUME_KEY) || '{}');
+    d[id] = Math.floor(seconds);
+    // keep max 200 entries
+    const keys = Object.keys(d);
+    if (keys.length > 200) delete d[keys[0]];
+    localStorage.setItem(RESUME_KEY, JSON.stringify(d));
+  } catch {}
+}
+function formatSeconds(s) {
+  s = Math.floor(s);
+  const m = Math.floor(s / 60), sec = s % 60;
+  return `${m}:${String(sec).padStart(2,'0')}`;
+}
+function formatAgo(ts) {
+  const diff = Date.now() - ts;
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return 'たった今';
+  if (m < 60) return `${m}分前`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}時間前`;
+  const d = Math.floor(h / 24);
+  if (d < 30) return `${d}日前`;
+  return `${Math.floor(d/30)}ヶ月前`;
+}
+
+let resumeCheckTimer = null;
+let currentIframe = null;
+
+function playVideo(id, title, channel = '', forceStart = null) {
   stopPreview();
   currentVideoId = id;
+  const thumb = `https://img.youtube.com/vi/${id}/mqdefault.jpg`;
+
+  // check resume position
+  const savedPos = getResume(id);
+  const startSec = forceStart !== null ? forceStart : (savedPos > 5 ? savedPos : 0);
+
+  if (startSec > 5 && forceStart === null) {
+    // show resume prompt
+    showResumePrompt(id, title, channel, savedPos);
+    return;
+  }
+
+  const src = `https://www.youtube.com/embed/${id}?autoplay=1&rel=0&start=${Math.floor(startSec)}&enablejsapi=1`;
   document.getElementById('player-section').classList.remove('hidden');
   document.getElementById('player-wrap').innerHTML =
-    `<iframe src="https://www.youtube.com/embed/${id}?autoplay=1&rel=0"
-      allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>`;
+    `<iframe id="yt-iframe" src="${src}" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>`;
+  currentIframe = document.getElementById('yt-iframe');
+
+  document.getElementById('player-title').textContent = title;
+  document.getElementById('player-channel').textContent = channel;
+  document.getElementById('now-bar').classList.add('visible');
+  document.getElementById('now-bar-title').textContent = title;
+
+  // save history
+  saveHistory(id, title, channel, thumb);
+
+  // save resume position every 5 seconds via postMessage polling
+  clearInterval(resumeCheckTimer);
+  resumeCheckTimer = setInterval(() => {
+    if (currentIframe) {
+      try { currentIframe.contentWindow.postMessage('{"event":"command","func":"getCurrentTime","args":""}', '*'); } catch {}
+    }
+  }, 5000);
+
+  scrollToPlayer();
+  if (accessToken) loadRelatedVideos(id);
+}
+
+function showResumePrompt(id, title, channel, pos) {
+  const wrap = document.getElementById('player-wrap');
+  const sec = document.getElementById('player-section');
+  sec.classList.remove('hidden');
+  wrap.innerHTML = `
+    <div style="background:#111;display:flex;flex-direction:column;align-items:center;justify-content:center;
+      aspect-ratio:16/9;gap:12px;padding:16px;text-align:center">
+      <img src="https://img.youtube.com/vi/${id}/mqdefault.jpg" style="width:120px;border-radius:8px;opacity:0.7">
+      <div style="color:#fff;font-size:13px;font-weight:500">${escHtml(title)}</div>
+      <div style="color:#aaa;font-size:12px">${formatSeconds(pos)} まで視聴済み</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
+        <button onclick="playVideo('${id}','${escAttr(title)}','${escAttr(channel)}',${Math.floor(pos)})"
+          style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:10px 18px;font-size:13px;font-weight:700;cursor:pointer">
+          ▶ ${formatSeconds(pos)}から再生
+        </button>
+        <button onclick="playVideo('${id}','${escAttr(title)}','${escAttr(channel)}',0)"
+          style="background:#333;color:#fff;border:none;border-radius:8px;padding:10px 18px;font-size:13px;cursor:pointer">
+          最初から
+        </button>
+      </div>
+    </div>`;
   document.getElementById('player-title').textContent = title;
   document.getElementById('player-channel').textContent = channel;
   document.getElementById('now-bar').classList.add('visible');
   document.getElementById('now-bar-title').textContent = title;
   scrollToPlayer();
-  if (accessToken) loadRelatedVideos(id);
 }
+
+// Listen for YouTube iframe postMessage (time updates)
+window.addEventListener('message', (e) => {
+  if (!e.data || typeof e.data !== 'string') return;
+  try {
+    const d = JSON.parse(e.data);
+    if (d.event === 'infoDelivery' && d.info && d.info.currentTime && currentVideoId) {
+      saveResume(currentVideoId, d.info.currentTime);
+    }
+  } catch {}
+});
 
 function playQueueItem(i) {
   currentVidIndex = i;
@@ -876,13 +1056,14 @@ function shuffleQueue() { queue = shuffle(queue); currentVidIndex = -1; renderQu
 function switchTab(tab) {
   stopPreview();
   currentTab = tab;
-  ['home','trend','search','channels','queue'].forEach(t => {
+  ['home','trend','search','channels','history','queue'].forEach(t => {
     document.getElementById(`page-${t}`).style.display = t === tab ? '' : 'none';
   });
   document.querySelectorAll('.tab').forEach((el, i) => {
-    el.classList.toggle('active', ['home','trend','search','channels','queue'][i] === tab);
+    el.classList.toggle('active', ['home','trend','search','channels','history','queue'][i] === tab);
   });
   if (tab === 'trend' && document.getElementById('trend-videos').innerHTML === '') loadTrend();
+  if (tab === 'history') renderHistory();
 }
 
 // ===== UTILS =====
