@@ -710,10 +710,18 @@ async function loadSubscriptions() {
       if (data.nextPageToken) pageToken = data.nextPageToken;
       else break;
     }
-    renderChannels();
+    dbg('subscriptions array length: ' + subscriptions.length);
   } catch (e) {
+    dbg('loadSub catch: ' + e.message);
     showToast('チャンネル取得失敗: ' + e.message);
     throw e;
+  }
+  // renderはtryの外で
+  try {
+    renderChannels();
+    dbg('renderChannels done');
+  } catch(e) {
+    dbg('renderChannels ERROR: ' + e.message);
   }
 }
 
