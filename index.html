@@ -601,31 +601,11 @@ async function onLoggedIn() {
   const recentEl = document.getElementById('recent-videos');
   recentEl.innerHTML = '<div class="loading"><div class="spinner"></div>ログイン確認中…</div>';
 
-  // userinfo でトークン有効性確認
-  try {
-    const r = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', { headers: { Authorization: `Bearer ${accessToken}` } });
-    if (!r.ok) {
-      recentEl.innerHTML = `<div class="empty">トークンエラー (${r.status})<br>ログアウトして再ログインしてください</div>`;
-      handleLogout();
-      return;
-    }
-    const u = await r.json();
-    if (u.picture) { const av = document.getElementById('user-avatar'); av.src = u.picture; av.style.display = ''; }
-    recentEl.innerHTML = '<div class="loading"><div class="spinner"></div>チャンネルを取得中…</div>';
-  } catch(e) {
-    recentEl.innerHTML = `<div class="empty">通信エラー: ${e.message}</div>`;
-    return;
-  }
-
   // チャンネル取得
-  try {
-    await loadSubscriptions();
-  } catch(e) {
-    recentEl.innerHTML = `<div class="empty">チャンネル取得エラー: ${e.message}</div>`;
-    return;
-  }
+  recentEl.innerHTML = '<div class="loading"><div class="spinner"></div>チャンネルを取得中…</div>';
+  await loadSubscriptions();
 
-  recentEl.innerHTML = `<div class="loading"><div class="spinner"></div>動画を取得中… (${subscriptions.length}チャンネル)</div>`;
+  recentEl.innerHTML = `<div class="loading"><div class="spinner"></div>動画を取得中… (登録${subscriptions.length}ch)</div>`;
 
   // 動画取得
   await loadRecentVideos();
@@ -637,7 +617,6 @@ async function apiGet(endpoint, params = {}) {
   Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
   const r = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
   if (!r.ok) {
-    if (r.status === 401) { handleLogout(); throw new Error('再ログインが必要です'); }
     throw new Error(`API Error ${r.status}`);
   }
   return r.json();
