@@ -626,6 +626,7 @@
   <!-- TREND -->
   <div id="page-trend" style="display:none">
     <div id="tiktok-container">
+      <div id="swipe-overlay" style="position:absolute;inset:0;z-index:50;display:none;"></div>
       <div id="tiktok-loading" class="tiktok-loading">
         <div class="spinner" style="border-top-color:#fff"></div>
         <div style="color:#fff;font-size:13px;margin-top:12px">トレンドを読み込み中…</div>
@@ -793,6 +794,7 @@ let trendVideos = [];
 let tiktokIndex = 0;
 let tiktokLoaded = false;
 let touchStartY = 0;
+let touchStartX = 0;
 let touchDeltaY = 0;
 let isSwiping = false;
 
@@ -907,52 +909,73 @@ function updateTiktokDots() {
   });
 }
 
+let tiktokTouchSetup = false;
 function setupTiktokTouch() {
-  const container = document.getElementById('tiktok-container');
-  container.addEventListener('touchstart', e => {
-    touchStartY = e.touches[0].clientY;
-    isSwiping = true;
-  }, { passive: true });
-  container.addEventListener('touchmove', e => {
-    if (!isSwiping) return;
-    touchDeltaY = e.touches[0].clientY - touchStartY;
-    // live drag feedback
+  if (tiktokTouchSetup) return;
+  tiktokTouchSetup = true;
+  // Use document-level listeners so iframe doesn't block events
+  document.addEventListener('touchstart', onTiktokTouchStart, { passive: true });
+  document.addEventListener('touchmove', onTiktokTouchMove, { passive: false });
+  document.addEventListener('touchend', onTiktokTouchEnd, { passive: true });
+}
+
+function isTiktokActive() {
+  return currentTab === 'trend';
+}
+
+function onTiktokTouchStart(e) {
+  if (!isTiktokActive()) return;
+  touchStartY = e.touches[0].clientY;
+  touchStartX = e.touches[0].clientX;
+  isSwiping = true;
+  touchDeltaY = 0;
+  // show swipe overlay to capture touch from iframe
+  const overlay = document.getElementById('swipe-overlay');
+  if (overlay) overlay.style.display = 'block';
+}
+
+function onTiktokTouchMove(e) {
+  if (!isTiktokActive() || !isSwiping) return;
+  const dy = e.touches[0].clientY - touchStartY;
+  const dx = e.touches[0].clientX - touchStartX;
+  // only handle vertical swipes
+  if (Math.abs(dx) > Math.abs(dy) + 10) { isSwiping = false; return; }
+  e.preventDefault();
+  touchDeltaY = dy;
+  const cur = document.getElementById(`slide-${tiktokIndex}`);
+  if (cur) { cur.style.transition = 'none'; cur.style.transform = `translateY(${dy}px)`; }
+  if (dy < 0 && tiktokIndex < trendVideos.length - 1) {
+    const next = document.getElementById(`slide-${tiktokIndex+1}`);
+    if (next) { next.style.transition = 'none'; next.style.transform = `translateY(calc(100% + ${dy}px))`; }
+  } else if (dy > 0 && tiktokIndex > 0) {
+    const prev = document.getElementById(`slide-${tiktokIndex-1}`);
+    if (prev) { prev.style.transition = 'none'; prev.style.transform = `translateY(calc(-100% + ${dy}px))`; }
+  }
+}
+
+function onTiktokTouchEnd() {
+  if (!isTiktokActive() || !isSwiping) return;
+  isSwiping = false;
+  const overlay = document.getElementById('swipe-overlay');
+  if (overlay) overlay.style.display = 'none';
+  const threshold = window.innerHeight * 0.18;
+  document.querySelectorAll('.tiktok-slide').forEach(s => s.style.transition = '');
+  if (touchDeltaY < -threshold) {
+    goToSlide(tiktokIndex + 1, 1);
+  } else if (touchDeltaY > threshold) {
+    goToSlide(tiktokIndex - 1, -1);
+  } else {
     const cur = document.getElementById(`slide-${tiktokIndex}`);
-    if (cur) cur.style.transition = 'none';
-    if (cur) cur.style.transform = `translateY(${touchDeltaY}px)`;
-    // peek next/prev
+    if (cur) cur.style.transform = 'translateY(0)';
     if (touchDeltaY < 0 && tiktokIndex < trendVideos.length - 1) {
       const next = document.getElementById(`slide-${tiktokIndex+1}`);
-      if (next) { next.style.transition = 'none'; next.style.transform = `translateY(calc(100% + ${touchDeltaY}px))`; }
+      if (next) next.style.transform = 'translateY(100%)';
     } else if (touchDeltaY > 0 && tiktokIndex > 0) {
       const prev = document.getElementById(`slide-${tiktokIndex-1}`);
-      if (prev) { prev.style.transition = 'none'; prev.style.transform = `translateY(calc(-100% + ${touchDeltaY}px))`; }
+      if (prev) prev.style.transform = 'translateY(-100%)';
     }
-  }, { passive: true });
-  container.addEventListener('touchend', () => {
-    if (!isSwiping) return;
-    isSwiping = false;
-    const threshold = window.innerHeight * 0.2;
-    // restore transitions
-    document.querySelectorAll('.tiktok-slide').forEach(s => s.style.transition = '');
-    if (touchDeltaY < -threshold) {
-      goToSlide(tiktokIndex + 1, 1);
-    } else if (touchDeltaY > threshold) {
-      goToSlide(tiktokIndex - 1, -1);
-    } else {
-      // snap back
-      const cur = document.getElementById(`slide-${tiktokIndex}`);
-      if (cur) cur.style.transform = 'translateY(0)';
-      if (touchDeltaY < 0 && tiktokIndex < trendVideos.length - 1) {
-        const next = document.getElementById(`slide-${tiktokIndex+1}`);
-        if (next) next.style.transform = 'translateY(100%)';
-      } else if (touchDeltaY > 0 && tiktokIndex > 0) {
-        const prev = document.getElementById(`slide-${tiktokIndex-1}`);
-        if (prev) prev.style.transform = 'translateY(-100%)';
-      }
-    }
-    touchDeltaY = 0;
-  });
+  }
+  touchDeltaY = 0;
 }
 
 // ===== SEARCH =====
@@ -997,8 +1020,12 @@ async function loadRecentVideos() {
   const el = document.getElementById('recent-videos');
   el.innerHTML = '<div class="loading"><div class="spinner"></div>読み込み中…</div>';
   document.getElementById('home-section-title').textContent = '最近の動画';
+  // subscriptionsがまだ空なら少し待つ
+  if (!subscriptions.length) {
+    await new Promise(r => setTimeout(r, 1500));
+  }
   try {
-    if (!subscriptions.length) { el.innerHTML = '<div class="empty">チャンネルがありません</div>'; return; }
+    if (!subscriptions.length) { el.innerHTML = '<div class="empty">チャンネルが見つかりませんでした<br>再読み込みしてください</div>'; return; }
     const sample = shuffle([...subscriptions]).slice(0, 10);
     const videos = [];
     await Promise.all(sample.map(async (ch) => {
