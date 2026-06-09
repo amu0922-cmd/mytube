@@ -397,6 +397,39 @@
     border-radius: 8px; pointer-events: none;
   }
 
+
+  /* SEARCH HISTORY */
+  #search-history-section { padding: 0 16px; }
+  .search-kw-list { display: flex; flex-wrap: wrap; gap: 8px; padding: 8px 0 16px; }
+  .search-kw-tag {
+    display: flex; align-items: center; gap: 6px;
+    background: var(--surface); border: 1.5px solid var(--border);
+    border-radius: 20px; padding: 6px 12px;
+    font-size: 13px; cursor: pointer;
+    box-shadow: var(--shadow-card);
+    transition: border-color 0.2s;
+  }
+  .search-kw-tag:active { border-color: var(--accent); }
+  .search-kw-count {
+    background: var(--accent); color: #fff;
+    border-radius: 10px; font-size: 10px; font-weight: 700;
+    padding: 1px 6px; min-width: 18px; text-align: center;
+  }
+  .search-kw-del {
+    color: var(--text3); font-size: 14px; cursor: pointer;
+    padding: 0 2px; line-height: 1;
+  }
+  .foryou-category {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 16px 4px;
+    font-size: 12px; color: var(--text2);
+  }
+  .foryou-cat-badge {
+    background: var(--accent-soft); color: var(--accent);
+    border: 1px solid var(--accent); border-radius: 12px;
+    padding: 3px 10px; font-size: 11px; font-weight: 700;
+  }
+
   </style>
 </head>
 <body>
@@ -413,6 +446,7 @@
 <div class="tabs">
   <button class="tab active" onclick="switchTab('home')">ホーム</button>
   <button class="tab" onclick="switchTab('trend')">🏆 トレンド</button>
+  <button class="tab" onclick="switchTab('foryou')">🎯 あなた向け</button>
   <button class="tab" onclick="switchTab('search')">🔍 検索</button>
   <button class="tab" onclick="switchTab('channels')">チャンネル</button>
   <button class="tab" onclick="switchTab('history')">🕐 履歴</button>
@@ -466,9 +500,23 @@
       <input class="search-input" id="search-input" placeholder="動画を検索…" />
       <button class="btn-search" onclick="doSearch()">🔍</button>
     </div>
-    <div id="search-results">
-      <div class="empty">キーワードを入力して検索してください</div>
+    <div id="search-history-section">
+      <div class="section-hd" style="padding-top:8px">
+        <h3>🔍 検索履歴</h3>
+        <a onclick="clearSearchHistory()">全削除</a>
+      </div>
+      <div id="search-history-list"></div>
     </div>
+    <div id="search-results"></div>
+  </div>
+
+  <!-- FOR YOU -->
+  <div id="page-foryou" style="display:none">
+    <div class="section-hd">
+      <h3 id="foryou-title">🎯 あなた向けトレンド</h3>
+      <a onclick="loadForYou()">更新</a>
+    </div>
+    <div id="foryou-videos"></div>
   </div>
 
   <!-- CHANNELS -->
@@ -617,6 +665,93 @@ async function apiGet(endpoint, params = {}) {
   return r.json();
 }
 
+
+// ===== FOR YOU =====
+const YT_CATEGORIES = {
+  '1': 'フィルム・アニメ', '2': '自動車・乗り物', '10': '音楽',
+  '15': 'ペット・動物', '17': 'スポーツ', '19': '旅行・イベント',
+  '20': 'ゲーム', '22': '人物・ブログ', '23': 'コメディ',
+  '24': 'エンタメ', '25': 'ニュース・政治', '26': 'ハウツー・スタイル',
+  '27': '教育', '28': '科学・技術', '29': '非営利・社会活動'
+};
+
+let forYouLoaded = false;
+
+async function loadForYou() {
+  if (!accessToken) { showToast('ログインが必要です'); return; }
+  const el = document.getElementById('foryou-videos');
+  const titleEl = document.getElementById('foryou-title');
+  el.innerHTML = '<div class="loading"><div class="spinner"></div>視聴履歴を分析中…</div>';
+  forYouLoaded = true;
+
+  // 視聴履歴からカテゴリIDを集計
+  const history = getHistory();
+  if (history.length === 0) {
+    el.innerHTML = '<div class="empty">視聴履歴がありません<br>動画を見るとあなた向けのランキングが表示されます</div>';
+    return;
+  }
+
+  // 動画IDからカテゴリを取得（最大20件）
+  const sample = history.slice(0, 20).map(v => v.id).join(',');
+  const catCount = {};
+  try {
+    const data = await apiGet('/videos', { part: 'snippet', id: sample });
+    (data.items || []).forEach(item => {
+      const cat = item.snippet.categoryId;
+      catCount[cat] = (catCount[cat] || 0) + 1;
+    });
+  } catch(e) {
+    el.innerHTML = '<div class="empty">分析失敗: ' + e.message + '</div>';
+    return;
+  }
+
+  if (!Object.keys(catCount).length) {
+    el.innerHTML = '<div class="empty">カテゴリを分析できませんでした</div>';
+    return;
+  }
+
+  // 最多カテゴリを選択
+  const topCatId = Object.entries(catCount).sort((a,b) => b[1]-a[1])[0][0];
+  const catName = YT_CATEGORIES[topCatId] || 'カテゴリ' + topCatId;
+  titleEl.textContent = '🎯 ' + catName + ' のトレンド';
+
+  el.innerHTML = '<div class="foryou-category">あなたがよく見るカテゴリ: <span class="foryou-cat-badge">' + catName + '</span></div>'
+    + '<div class="loading"><div class="spinner"></div>ランキングを取得中…</div>';
+
+  try {
+    const allVideos = [];
+    const d1 = await apiGet('/videos', {
+      part: 'snippet', chart: 'mostPopular',
+      regionCode: 'JP', videoCategoryId: topCatId, maxResults: 50
+    });
+    (d1.items || []).forEach(item => allVideos.push(item));
+    if (d1.nextPageToken) {
+      const d2 = await apiGet('/videos', {
+        part: 'snippet', chart: 'mostPopular',
+        regionCode: 'JP', videoCategoryId: topCatId,
+        maxResults: 50, pageToken: d1.nextPageToken
+      });
+      (d2.items || []).forEach(item => allVideos.push(item));
+    }
+    const videos = allVideos.map((item, i) => ({
+      id: item.id, title: item.snippet.title,
+      channel: item.snippet.channelTitle,
+      thumb: item.snippet.thumbnails?.medium?.url || item.snippet.thumbnails?.default?.url || '',
+      date: item.snippet.publishedAt,
+      rank: i + 1
+    }));
+    if (!videos.length) {
+      el.innerHTML = '<div class="empty">このカテゴリのトレンドが見つかりませんでした</div>';
+      return;
+    }
+    el.innerHTML = '<div class="foryou-category">あなたがよく見るカテゴリ: <span class="foryou-cat-badge">' + catName + '</span></div>'
+      + '<div class="video-grid">' + videos.map(v => gridCardHTML(v, true)).join('') + '</div>';
+  } catch(e) {
+    el.innerHTML = '<div class="empty">取得失敗: ' + e.message + '</div>';
+    forYouLoaded = false;
+  }
+}
+
 // ===== TREND =====
 let trendLoaded = false;
 
@@ -648,12 +783,75 @@ async function loadTrend() {
 }
 
 // ===== SEARCH =====
+// ===== SEARCH HISTORY =====
+const SEARCH_HISTORY_KEY = 'mytube_search_history';
+
+function getSearchHistory() {
+  try { return JSON.parse(localStorage.getItem(SEARCH_HISTORY_KEY) || '{}'); } catch { return {}; }
+}
+function saveSearchKeyword(q) {
+  const h = getSearchHistory();
+  h[q] = (h[q] || 0) + 1;
+  localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(h));
+  renderSearchHistory();
+}
+function clearSearchHistory() {
+  localStorage.removeItem(SEARCH_HISTORY_KEY);
+  renderSearchHistory();
+  showToast('検索履歴を削除しました');
+}
+function deleteSearchKeyword(q) {
+  const h = getSearchHistory();
+  delete h[q];
+  localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(h));
+  renderSearchHistory();
+}
+function renderSearchHistory() {
+  const el = document.getElementById('search-history-list');
+  if (!el) return;
+  const h = getSearchHistory();
+  const sorted = Object.entries(h).sort((a, b) => b[1] - a[1]).slice(0, 20);
+  if (!sorted.length) {
+    el.innerHTML = '<div style="padding:8px 0 16px;font-size:12px;color:var(--text3)">まだ検索履歴がありません</div>';
+    return;
+  }
+  const wrap = document.createElement('div');
+  wrap.className = 'search-kw-list';
+  sorted.forEach(([kw, cnt]) => {
+    const span = document.createElement('span');
+    span.className = 'search-kw-tag';
+    const kwText = document.createTextNode(kw);
+    const cntBadge = document.createElement('span');
+    cntBadge.className = 'search-kw-count';
+    cntBadge.textContent = cnt;
+    const delBtn = document.createElement('span');
+    delBtn.className = 'search-kw-del';
+    delBtn.textContent = '✕';
+    delBtn.addEventListener('click', (e) => { e.stopPropagation(); deleteSearchKeyword(kw); });
+    span.appendChild(kwText);
+    span.appendChild(cntBadge);
+    span.appendChild(delBtn);
+    span.addEventListener('click', () => searchFromHistory(kw));
+    wrap.appendChild(span);
+  });
+  el.innerHTML = '';
+  el.appendChild(wrap);
+}
+function searchFromHistory(kw) {
+  document.getElementById('search-input').value = kw;
+  doSearch();
+}
+
 async function doSearch() {
   const q = document.getElementById('search-input').value.trim();
-  if (!q) return;
+  if (!q) { renderSearchHistory(); return; }
   if (!accessToken) { showToast('ログインしてください'); return; }
+  // 履歴セクションを隠す
+  const histSec = document.getElementById('search-history-section');
+  if (histSec) histSec.style.display = 'none';
   const el = document.getElementById('search-results');
   el.innerHTML = '<div class="loading"><div class="spinner"></div>検索中…</div>';
+  saveSearchKeyword(q);
   try {
     const data = await apiGet('/search', { part: 'snippet', q, type: 'video', maxResults: 20, order: 'relevance' });
     const videos = (data.items || []).map(item => ({
@@ -663,8 +861,8 @@ async function doSearch() {
       date: item.snippet.publishedAt
     }));
     if (!videos.length) { el.innerHTML = '<div class="empty">結果が見つかりませんでした</div>'; return; }
-    el.innerHTML = `<div class="video-list">${videos.map(v => listCardHTML(v)).join('')}</div>`;
-  } catch (e) { el.innerHTML = `<div class="empty">検索失敗: ${e.message}</div>`; }
+    el.innerHTML = '<div class="video-list">' + videos.map(v => listCardHTML(v)).join('') + '</div>';
+  } catch (e) { el.innerHTML = '<div class="empty">検索失敗: ' + e.message + '</div>'; }
 }
 
 // ===== SUBSCRIPTIONS =====
@@ -750,15 +948,17 @@ async function loadChannelVideos(chId, chName) {
   el.innerHTML = `<div class="loading"><div class="spinner"></div>${chName} の動画を取得中…</div>`;
   document.getElementById('home-section-title').textContent = chName;
   try {
-    const data = await apiGet('/search', { part: 'snippet', channelId: chId, order: 'date', maxResults: 20, type: 'video' });
-    const videos = (data.items || []).map(item => ({
-      id: item.id.videoId, title: item.snippet.title,
+    const data = await apiGet('/activities', { part: 'snippet,contentDetails', channelId: chId, maxResults: 20 });
+    const videos = (data.items || []).filter(i => i.contentDetails && i.contentDetails.upload).map(item => ({
+      id: item.contentDetails.upload.videoId,
+      title: item.snippet.title,
       channel: item.snippet.channelTitle,
-      thumb: item.snippet.thumbnails?.medium?.url || '',
+      thumb: item.snippet.thumbnails?.medium?.url || item.snippet.thumbnails?.default?.url || '',
       date: item.snippet.publishedAt
     }));
-    el.innerHTML = `<div class="video-grid">${videos.map(v => gridCardHTML(v, false)).join('')}</div>`;
-  } catch (e) { el.innerHTML = `<div class="empty">取得失敗: ${e.message}</div>`; }
+    if (!videos.length) { el.innerHTML = '<div class="empty">動画が見つかりませんでした</div>'; return; }
+    el.innerHTML = '<div class="video-grid">' + videos.map(v => gridCardHTML(v, false)).join('') + '</div>';
+  } catch (e) { el.innerHTML = '<div class="empty">取得失敗: ' + e.message + '</div>'; }
 }
 
 async function loadRelatedVideos(videoId) {
@@ -1135,13 +1335,15 @@ function shuffleQueue() { queue = shuffle(queue); currentVidIndex = -1; renderQu
 function switchTab(tab) {
   stopPreview();
   currentTab = tab;
-  ['home','trend','search','channels','history','queue'].forEach(t => {
+  ['home','trend','foryou','search','channels','history','queue'].forEach(t => {
     document.getElementById(`page-${t}`).style.display = t === tab ? '' : 'none';
   });
   document.querySelectorAll('.tab').forEach((el, i) => {
-    el.classList.toggle('active', ['home','trend','search','channels','history','queue'][i] === tab);
+    el.classList.toggle('active', ['home','trend','foryou','search','channels','history','queue'][i] === tab);
   });
   if (tab === 'trend' && !trendLoaded) loadTrend();
+  if (tab === 'foryou' && !forYouLoaded) loadForYou();
+  if (tab === 'search') renderSearchHistory();
   if (tab === 'history') renderHistory();
 }
 
