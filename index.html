@@ -536,39 +536,21 @@ let currentVideoId = null;
 let previewingId = null; // card currently in preview mode
 
 // ===== AUTH =====
-function dbg(msg) {
-  // 画面上部にデバッグメッセージ表示
-  let el = document.getElementById('debug-bar');
-  if (!el) {
-    el = document.createElement('div');
-    el.id = 'debug-bar';
-    el.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:#000;color:#0f0;font-size:11px;padding:4px 8px;font-family:monospace;max-height:120px;overflow-y:auto';
-    document.body.prepend(el);
-  }
-  el.innerHTML += msg + '<br>';
-}
-
 window.onload = () => {
   switchTab('home');
   renderQueue();
-  dbg('onload fired');
   const tryInit = () => {
-    dbg('tryInit: google=' + !!(window.google) + ' oauth2=' + !!(window.google && google.accounts && google.accounts.oauth2));
     if (window.google && google.accounts && google.accounts.oauth2) {
       initTokenClient();
       const saved = localStorage.getItem('yt_token');
       const expiry = parseInt(localStorage.getItem('yt_token_expiry') || '0');
-      dbg('token saved=' + !!saved + ' expiry=' + new Date(expiry).toLocaleTimeString() + ' now=' + new Date().toLocaleTimeString() + ' valid=' + (Date.now() < expiry));
-      // expiryがない古いトークンはそのまま使う（フォールバック）
       const noExpiry = expiry === 0;
       if (saved && (noExpiry || Date.now() < expiry)) {
         accessToken = saved;
-        dbg('calling onLoggedIn noExpiry=' + noExpiry);
         onLoggedIn();
       } else {
         localStorage.removeItem('yt_token');
         localStorage.removeItem('yt_token_expiry');
-        dbg('token expired or missing');
         if (saved) showToast('セッション期限切れです。再ログインしてください');
       }
     } else {
@@ -617,15 +599,11 @@ async function onLoggedIn() {
 
   const recentEl = document.getElementById('recent-videos');
   recentEl.innerHTML = '<div class="loading"><div class="spinner"></div>チャンネルを取得中…</div>';
-  dbg('onLoggedIn: calling loadSubscriptions');
 
-  try { await loadSubscriptions(); } catch(e) { dbg('sub threw: ' + e.message); }
-
-  dbg('after loadSubscriptions: ' + subscriptions.length + 'ch');
+  try { await loadSubscriptions(); } catch(e) { }
   recentEl.innerHTML = `<div class="loading"><div class="spinner"></div>動画を取得中… (${subscriptions.length}ch)</div>`;
 
-  try { await loadRecentVideos(); } catch(e) { dbg('recent threw: ' + e.message); }
-  dbg('onLoggedIn done');
+  try { await loadRecentVideos(); } catch(e) { }
 }
 
 // ===== API =====
@@ -693,14 +671,11 @@ async function doSearch() {
 async function loadSubscriptions() {
   subscriptions = [];
   let pageToken = '';
-  dbg('loadSubscriptions start, token=' + (accessToken ? 'ok' : 'null'));
   try {
     while (true) {
       const params = { part: 'snippet', mine: true, maxResults: 50, order: 'alphabetical' };
       if (pageToken) params.pageToken = pageToken;
-      dbg('fetching subscriptions page...');
       const data = await apiGet('/subscriptions', params);
-      dbg('got ' + (data.items||[]).length + ' items, next=' + !!data.nextPageToken);
       const items = (data.items || []).map(i => ({
         id: i.snippet.resourceId.channelId,
         name: i.snippet.title,
@@ -710,17 +685,13 @@ async function loadSubscriptions() {
       if (data.nextPageToken) pageToken = data.nextPageToken;
       else break;
     }
-    dbg('subscriptions array length: ' + subscriptions.length);
   } catch (e) {
-    dbg('loadSub catch: ' + e.message);
     showToast('チャンネル取得失敗: ' + e.message);
   }
   // renderはtryの外で
   try {
     renderChannels();
-    dbg('renderChannels done');
   } catch(e) {
-    dbg('renderChannels ERROR: ' + e.message);
   }
 }
 
@@ -729,7 +700,6 @@ async function loadRecentVideos() {
   const el = document.getElementById('recent-videos');
   el.innerHTML = '<div class="loading"><div class="spinner"></div>動画を取得中…</div>';
   document.getElementById('home-section-title').textContent = '最近の動画';
-  dbg('loadRecentVideos start, subs=' + subscriptions.length);
   try {
     if (!subscriptions.length) {
       el.innerHTML = '<div class="empty">チャンネルが見つかりませんでした</div>';
@@ -761,12 +731,8 @@ async function loadRecentVideos() {
             });
           }
         });
-        dbg('ch ok: ' + ch.name.substring(0,10) + ' videos=' + videos.length);
-      } catch(e) {
-        dbg('ch err: ' + ch.name.substring(0,8) + ' ' + e.message);
-      }
+      } catch(e) {}
     }
-    dbg('total videos: ' + videos.length);
     recentVideos = shuffle(videos);
     if (recentVideos.length === 0) {
       el.innerHTML = '<div class="empty">動画を取得できませんでした<br>更新ボタンをお試しください</div>';
@@ -774,7 +740,6 @@ async function loadRecentVideos() {
       el.innerHTML = '<div class="video-grid">' + recentVideos.map(v => gridCardHTML(v, false)).join('') + '</div>';
     }
   } catch (e) {
-    dbg('loadRecent ERROR: ' + e.message);
     el.innerHTML = '<div class="empty">取得失敗: ' + e.message + '</div>';
   }
 }
