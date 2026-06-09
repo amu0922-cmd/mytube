@@ -1,0 +1,1157 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>MyTube</title>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=Space+Grotesk:wght@500;700&display=swap');
+
+  :root {
+    --bg: #0d0d0d;
+    --surface: #161616;
+    --surface2: #1f1f1f;
+    --surface3: #2a2a2a;
+    --border: #2e2e2e;
+    --accent: #ff0040;
+    --accent-soft: rgba(255,0,64,0.12);
+    --text: #f0f0f0;
+    --text2: #999;
+    --text3: #555;
+    --radius: 10px;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Noto Sans JP', sans-serif;
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    overflow-x: hidden;
+  }
+
+  /* ===== HEADER ===== */
+  header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    padding: calc(var(--safe-top) + 12px) 16px 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .logo {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700;
+    font-size: 22px;
+    letter-spacing: -1px;
+    color: var(--text);
+    flex-shrink: 0;
+  }
+
+  .logo em {
+    color: var(--accent);
+    font-style: normal;
+  }
+
+  .header-right {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--accent);
+    display: none;
+  }
+
+  .btn-login {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 20px;
+    padding: 8px 18px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+  .btn-login:active { opacity: 0.8; }
+
+  .btn-icon {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text2);
+    border-radius: 8px;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .btn-icon:active { background: var(--surface3); }
+
+  /* ===== TABS ===== */
+  .tabs {
+    display: flex;
+    gap: 4px;
+    padding: 10px 16px;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .tabs::-webkit-scrollbar { display: none; }
+
+  .tab {
+    flex-shrink: 0;
+    padding: 7px 16px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text2);
+    transition: all 0.2s;
+  }
+  .tab.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+
+  /* ===== MAIN ===== */
+  main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ===== PLAYER ===== */
+  #player-section {
+    background: #000;
+  }
+
+  #player-section.hidden { display: none; }
+
+  #player-wrap {
+    width: 100%;
+    aspect-ratio: 16/9;
+    background: #000;
+  }
+
+  #player-wrap iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+    display: block;
+  }
+
+  .player-info {
+    padding: 12px 16px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .player-title {
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.4;
+    margin-bottom: 4px;
+  }
+
+  .player-channel {
+    font-size: 12px;
+    color: var(--text2);
+  }
+
+  /* ===== PAGE: HOME ===== */
+  #page-home {
+    padding: 16px;
+  }
+
+  .hero-section {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 20px 16px;
+    margin-bottom: 20px;
+    border: 1px solid var(--border);
+    text-align: center;
+  }
+
+  .hero-section h2 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+
+  .hero-section p {
+    font-size: 13px;
+    color: var(--text2);
+    margin-bottom: 16px;
+    line-height: 1.6;
+  }
+
+  .btn-random {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius);
+    padding: 14px 28px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700;
+    font-size: 15px;
+    cursor: pointer;
+    width: 100%;
+    transition: opacity 0.2s, transform 0.1s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .btn-random:active { transform: scale(0.98); opacity: 0.9; }
+  .btn-random:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .btn-random .spin {
+    display: inline-block;
+    animation: spin 1s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ===== SECTION HEADER ===== */
+  .section-hd {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+
+  .section-hd h3 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    color: var(--text2);
+    text-transform: uppercase;
+  }
+
+  .section-hd a {
+    font-size: 12px;
+    color: var(--accent);
+    text-decoration: none;
+    cursor: pointer;
+  }
+
+  /* ===== VIDEO CARDS ===== */
+  .video-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .video-card {
+    display: flex;
+    gap: 12px;
+    cursor: pointer;
+    border-radius: var(--radius);
+    padding: 8px;
+    transition: background 0.15s;
+    border: 1px solid transparent;
+  }
+  .video-card:active { background: var(--surface2); }
+  .video-card.playing {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+  }
+
+  .video-thumb {
+    width: 120px;
+    height: 68px;
+    border-radius: 6px;
+    background: var(--surface3);
+    overflow: hidden;
+    flex-shrink: 0;
+    position: relative;
+  }
+
+  .video-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .thumb-ph {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    color: var(--text3);
+  }
+
+  .play-badge {
+    position: absolute;
+    inset: 0;
+    background: rgba(255,0,64,0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+  }
+
+  .video-meta {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .video-meta .title {
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    margin-bottom: 5px;
+  }
+
+  .video-meta .channel {
+    font-size: 11px;
+    color: var(--text2);
+    margin-bottom: 3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .video-meta .date {
+    font-size: 11px;
+    color: var(--text3);
+  }
+
+  /* ===== PAGE: CHANNELS ===== */
+  #page-channels {
+    padding: 16px;
+  }
+
+  .channel-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .channel-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 8px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .channel-item:active { background: var(--surface2); }
+  .channel-item.selected { background: var(--accent-soft); }
+
+  .ch-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: var(--surface3);
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .ch-icon img { width: 100%; height: 100%; object-fit: cover; }
+
+  .ch-ph {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    background: var(--surface3);
+    border-radius: 50%;
+  }
+
+  .ch-info { flex: 1; min-width: 0; }
+  .ch-name {
+    font-size: 14px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .ch-subs { font-size: 11px; color: var(--text2); margin-top: 2px; }
+
+  .ch-arrow { color: var(--text3); font-size: 16px; }
+
+  /* ===== PAGE: QUEUE ===== */
+  #page-queue {
+    padding: 16px;
+  }
+
+  .queue-actions {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .btn-sm {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 10px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    text-align: center;
+    transition: background 0.2s;
+  }
+  .btn-sm:active { background: var(--surface3); }
+  .btn-sm.danger { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+
+  .input-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .url-input {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 11px 14px;
+    color: var(--text);
+    font-size: 13px;
+    outline: none;
+    font-family: inherit;
+  }
+  .url-input:focus { border-color: var(--accent); }
+  .url-input::placeholder { color: var(--text3); }
+
+  .btn-add {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 11px 16px;
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+    white-space: nowrap;
+    font-family: 'Space Grotesk', sans-serif;
+  }
+
+  .queue-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: background 0.15s;
+    border: 1px solid transparent;
+    position: relative;
+  }
+  .queue-item:active { background: var(--surface2); }
+  .queue-item.playing {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+  }
+  .queue-item.playing::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 6px; bottom: 6px;
+    width: 3px;
+    background: var(--accent);
+    border-radius: 2px;
+  }
+
+  .q-thumb {
+    width: 80px;
+    height: 45px;
+    border-radius: 6px;
+    background: var(--surface3);
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .q-thumb img { width: 100%; height: 100%; object-fit: cover; }
+
+  .q-info { flex: 1; min-width: 0; }
+  .q-title {
+    font-size: 12px;
+    font-weight: 500;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    line-height: 1.4;
+    margin-bottom: 3px;
+  }
+  .q-id { font-size: 10px; color: var(--text3); font-family: monospace; }
+
+  .q-del {
+    background: none;
+    border: none;
+    color: var(--text3);
+    font-size: 18px;
+    padding: 6px;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .q-del:active { color: var(--accent); }
+
+  /* ===== LOGIN GATE ===== */
+  .login-gate {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 24px;
+    text-align: center;
+    gap: 16px;
+  }
+
+  .login-gate .icon { font-size: 56px; opacity: 0.3; }
+
+  .login-gate h2 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 20px;
+    font-weight: 700;
+  }
+
+  .login-gate p {
+    font-size: 13px;
+    color: var(--text2);
+    line-height: 1.7;
+    max-width: 280px;
+  }
+
+  /* ===== LOADING / EMPTY ===== */
+  .loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px;
+    gap: 12px;
+    color: var(--text2);
+    font-size: 13px;
+  }
+
+  .spinner {
+    width: 28px;
+    height: 28px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+
+  .empty {
+    text-align: center;
+    padding: 40px 24px;
+    color: var(--text2);
+    font-size: 13px;
+    line-height: 1.8;
+  }
+
+  /* ===== TOAST ===== */
+  #toast {
+    position: fixed;
+    bottom: calc(20px + var(--safe-bottom));
+    left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: var(--surface3);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 10px 20px;
+    border-radius: 20px;
+    font-size: 13px;
+    transition: transform 0.3s ease;
+    z-index: 200;
+    white-space: nowrap;
+    max-width: 90vw;
+    text-overflow: ellipsis;
+    overflow: hidden;
+  }
+  #toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* ===== NOW PLAYING BAR ===== */
+  #now-bar {
+    position: sticky;
+    bottom: 0;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    padding: 10px 16px calc(10px + var(--safe-bottom));
+    display: none;
+    align-items: center;
+    gap: 10px;
+    z-index: 40;
+  }
+  #now-bar.visible { display: flex; }
+
+  .now-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    animation: pulse 1.5s infinite;
+    flex-shrink: 0;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  #now-bar-title {
+    flex: 1;
+    font-size: 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .now-bar-scroll {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text2);
+    border-radius: 6px;
+    padding: 5px 10px;
+    font-size: 11px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">My<em>Tube</em></div>
+  <div class="header-right">
+    <img class="avatar" id="user-avatar" src="" alt="">
+    <button class="btn-login" id="btn-login" onclick="handleLogin()">Googleでログイン</button>
+    <button class="btn-icon" id="btn-logout" style="display:none" onclick="handleLogout()" title="ログアウト">⏻</button>
+  </div>
+</header>
+
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('home')">ホーム</button>
+  <button class="tab" onclick="switchTab('channels')">チャンネル</button>
+  <button class="tab" onclick="switchTab('queue')">キュー</button>
+</div>
+
+<div id="player-section" class="hidden">
+  <div id="player-wrap"></div>
+  <div class="player-info">
+    <div class="player-title" id="player-title">—</div>
+    <div class="player-channel" id="player-channel"></div>
+  </div>
+</div>
+
+<main>
+
+  <!-- HOME -->
+  <div id="page-home" style="display:none">
+    <div id="home-login-gate" class="login-gate">
+      <div class="icon">📺</div>
+      <h2>登録チャンネルを表示</h2>
+      <p>Googleアカウントでログインすると、登録チャンネルの最新動画をランダムで再生できます。</p>
+      <button class="btn-login" onclick="handleLogin()">Googleでログイン</button>
+    </div>
+    <div id="home-content" style="display:none">
+      <div class="hero-section">
+        <h2>🎲 ランダム再生</h2>
+        <p>登録チャンネルからランダムに最新動画を選んで再生します</p>
+        <button class="btn-random" id="btn-random" onclick="playRandom()">
+          <span>▶</span> ランダムで再生
+        </button>
+      </div>
+      <div class="section-hd">
+        <h3>最近の動画</h3>
+        <a onclick="loadRecentVideos()">更新</a>
+      </div>
+      <div id="recent-videos" class="video-list">
+        <div class="loading"><div class="spinner"></div>読み込み中…</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHANNELS -->
+  <div id="page-channels" style="display:none">
+    <div id="channels-login-gate" class="login-gate">
+      <div class="icon">📡</div>
+      <h2>チャンネル一覧</h2>
+      <p>ログインすると登録チャンネルが表示されます。</p>
+      <button class="btn-login" onclick="handleLogin()">Googleでログイン</button>
+    </div>
+    <div id="channels-content" style="display:none">
+      <div class="section-hd" style="margin-bottom:12px">
+        <h3>登録チャンネル</h3>
+        <a onclick="loadSubscriptions()">更新</a>
+      </div>
+      <div id="channel-list" class="channel-list">
+        <div class="loading"><div class="spinner"></div>読み込み中…</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- QUEUE -->
+  <div id="page-queue" style="display:none">
+    <div class="input-row">
+      <input class="url-input" id="url-input" placeholder="YouTubeのURLまたは動画IDを入力…" />
+      <button class="btn-add" onclick="addToQueue()">追加</button>
+    </div>
+    <div class="queue-actions">
+      <button class="btn-sm" onclick="shuffleQueue()">🔀 シャッフル</button>
+      <button class="btn-sm danger" onclick="clearQueue()">🗑 全削除</button>
+    </div>
+    <div id="queue-list"></div>
+  </div>
+
+</main>
+
+<div id="now-bar">
+  <div class="now-dot"></div>
+  <div id="now-bar-title">—</div>
+  <div class="now-bar-scroll" onclick="scrollToPlayer()">▲ 動画へ</div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ===== CONFIG =====
+const CLIENT_ID = '801692007843-5asbch4e2eqiod34p2d0gqjlbi236s5f.apps.googleusercontent.com';
+const SCOPES = 'https://www.googleapis.com/auth/youtube.readonly';
+const API_BASE = 'https://www.googleapis.com/youtube/v3';
+
+// ===== STATE =====
+let accessToken = null;
+let subscriptions = [];
+let queue = [];
+let currentVidIndex = -1;
+let currentTab = 'home';
+let tokenClient = null;
+let recentVideos = [];
+
+// ===== AUTH =====
+window.onload = () => {
+  google.accounts.oauth2 && initTokenClient();
+  const saved = sessionStorage.getItem('yt_token');
+  if (saved) {
+    accessToken = saved;
+    onLoggedIn();
+  }
+  switchTab('home');
+  renderQueue();
+};
+
+function initTokenClient() {
+  tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: CLIENT_ID,
+    scope: SCOPES,
+    callback: (resp) => {
+      if (resp.error) { showToast('ログイン失敗: ' + resp.error); return; }
+      accessToken = resp.access_token;
+      sessionStorage.setItem('yt_token', accessToken);
+      onLoggedIn();
+    }
+  });
+}
+
+function handleLogin() {
+  if (!tokenClient) { showToast('Google SDKを読み込み中…'); return; }
+  tokenClient.requestAccessToken();
+}
+
+function handleLogout() {
+  if (accessToken) google.accounts.oauth2.revoke(accessToken);
+  accessToken = null;
+  sessionStorage.removeItem('yt_token');
+  subscriptions = [];
+  recentVideos = [];
+  document.getElementById('btn-login').style.display = '';
+  document.getElementById('btn-logout').style.display = 'none';
+  document.getElementById('user-avatar').style.display = 'none';
+  document.getElementById('home-login-gate').style.display = '';
+  document.getElementById('home-content').style.display = 'none';
+  document.getElementById('channels-login-gate').style.display = '';
+  document.getElementById('channels-content').style.display = 'none';
+  showToast('ログアウトしました');
+}
+
+async function onLoggedIn() {
+  document.getElementById('btn-login').style.display = 'none';
+  document.getElementById('btn-logout').style.display = '';
+  document.getElementById('home-login-gate').style.display = 'none';
+  document.getElementById('home-content').style.display = '';
+  document.getElementById('channels-login-gate').style.display = 'none';
+  document.getElementById('channels-content').style.display = '';
+
+  // fetch user info for avatar
+  try {
+    const r = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+    const u = await r.json();
+    if (u.picture) {
+      const av = document.getElementById('user-avatar');
+      av.src = u.picture;
+      av.style.display = '';
+    }
+  } catch {}
+
+  loadSubscriptions();
+  loadRecentVideos();
+}
+
+// ===== API =====
+async function apiGet(endpoint, params = {}) {
+  const url = new URL(API_BASE + endpoint);
+  Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
+  const r = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+  if (!r.ok) {
+    if (r.status === 401) { handleLogout(); throw new Error('再ログインが必要です'); }
+    throw new Error(`API Error ${r.status}`);
+  }
+  return r.json();
+}
+
+async function loadSubscriptions(pageToken = '', append = false) {
+  try {
+    const params = { part: 'snippet', mine: true, maxResults: 50, order: 'alphabetical' };
+    if (pageToken) params.pageToken = pageToken;
+    const data = await apiGet('/subscriptions', params);
+    const items = (data.items || []).map(i => ({
+      id: i.snippet.resourceId.channelId,
+      name: i.snippet.title,
+      thumb: i.snippet.thumbnails?.default?.url || '',
+      subs: ''
+    }));
+    if (append) subscriptions = [...subscriptions, ...items];
+    else subscriptions = items;
+
+    // load more pages
+    if (data.nextPageToken) {
+      await loadSubscriptions(data.nextPageToken, true);
+    } else {
+      renderChannels();
+    }
+  } catch (e) {
+    showToast('チャンネル取得失敗: ' + e.message);
+    renderChannels();
+  }
+}
+
+async function loadRecentVideos() {
+  if (!accessToken) return;
+  const el = document.getElementById('recent-videos');
+  el.innerHTML = '<div class="loading"><div class="spinner"></div>読み込み中…</div>';
+
+  try {
+    // Get latest video from up to 10 random subscribed channels
+    if (subscriptions.length === 0) {
+      el.innerHTML = '<div class="empty">チャンネルがありません</div>';
+      return;
+    }
+    const sample = shuffle([...subscriptions]).slice(0, 10);
+    const videos = [];
+    await Promise.all(sample.map(async (ch) => {
+      try {
+        const data = await apiGet('/search', {
+          part: 'snippet', channelId: ch.id,
+          order: 'date', maxResults: 2, type: 'video'
+        });
+        (data.items || []).forEach(item => {
+          videos.push({
+            id: item.id.videoId,
+            title: item.snippet.title,
+            channel: item.snippet.channelTitle,
+            thumb: item.snippet.thumbnails?.medium?.url || '',
+            date: item.snippet.publishedAt
+          });
+        });
+      } catch {}
+    }));
+
+    recentVideos = shuffle(videos);
+    renderRecentVideos();
+  } catch (e) {
+    el.innerHTML = `<div class="empty">取得失敗: ${e.message}</div>`;
+  }
+}
+
+async function playRandom() {
+  if (!accessToken) { showToast('ログインしてください'); return; }
+  if (subscriptions.length === 0) { showToast('チャンネルがありません'); return; }
+
+  const btn = document.getElementById('btn-random');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin">⟳</span> 取得中…';
+
+  try {
+    const ch = subscriptions[Math.floor(Math.random() * subscriptions.length)];
+    const data = await apiGet('/search', {
+      part: 'snippet', channelId: ch.id,
+      order: 'date', maxResults: 10, type: 'video'
+    });
+    const items = data.items || [];
+    if (items.length === 0) { showToast('動画が見つかりませんでした'); return; }
+    const item = items[Math.floor(Math.random() * items.length)];
+    playVideo(item.id.videoId, item.snippet.title, item.snippet.channelTitle);
+    showToast(`${ch.name} の動画を再生中`);
+  } catch (e) {
+    showToast('取得失敗: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<span>▶</span> ランダムで再生';
+  }
+}
+
+async function loadChannelVideos(chId, chName) {
+  switchTab('home');
+  const el = document.getElementById('recent-videos');
+  el.innerHTML = `<div class="loading"><div class="spinner"></div>${chName} の動画を取得中…</div>`;
+  document.getElementById('home-content').style.display = '';
+
+  try {
+    const data = await apiGet('/search', {
+      part: 'snippet', channelId: chId,
+      order: 'date', maxResults: 20, type: 'video'
+    });
+    recentVideos = (data.items || []).map(item => ({
+      id: item.id.videoId,
+      title: item.snippet.title,
+      channel: item.snippet.channelTitle,
+      thumb: item.snippet.thumbnails?.medium?.url || '',
+      date: item.snippet.publishedAt
+    }));
+    renderRecentVideos();
+    document.querySelector('.section-hd h3').textContent = chName;
+  } catch (e) {
+    el.innerHTML = `<div class="empty">取得失敗: ${e.message}</div>`;
+  }
+}
+
+// ===== RENDER =====
+function renderChannels() {
+  const el = document.getElementById('channel-list');
+  if (subscriptions.length === 0) {
+    el.innerHTML = '<div class="empty">チャンネルが見つかりません</div>';
+    return;
+  }
+  el.innerHTML = subscriptions.map((ch, i) => `
+    <div class="channel-item" onclick="loadChannelVideos('${ch.id}','${escHtml(ch.name)}')">
+      <div class="ch-icon">
+        ${ch.thumb
+          ? `<img src="${ch.thumb}" alt="" onerror="this.parentNode.innerHTML='<div class=ch-ph>📺</div>'">`
+          : `<div class="ch-ph">📺</div>`}
+      </div>
+      <div class="ch-info">
+        <div class="ch-name">${escHtml(ch.name)}</div>
+      </div>
+      <div class="ch-arrow">›</div>
+    </div>
+  `).join('');
+}
+
+function renderRecentVideos() {
+  const el = document.getElementById('recent-videos');
+  if (recentVideos.length === 0) {
+    el.innerHTML = '<div class="empty">動画がありません</div>';
+    return;
+  }
+  el.innerHTML = recentVideos.map((v, i) => `
+    <div class="video-card" id="vc-${v.id}" onclick="playVideo('${v.id}','${escHtml(v.title).replace(/'/g,"\\'")}','${escHtml(v.channel).replace(/'/g,"\\'")}')">
+      <div class="video-thumb">
+        ${v.thumb ? `<img src="${v.thumb}" alt="">` : `<div class="thumb-ph">▶</div>`}
+      </div>
+      <div class="video-meta">
+        <div class="title">${escHtml(v.title)}</div>
+        <div class="channel">${escHtml(v.channel)}</div>
+        <div class="date">${formatDate(v.date)}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderQueue() {
+  const el = document.getElementById('queue-list');
+  if (queue.length === 0) {
+    el.innerHTML = '<div class="empty">キューが空です<br>URLを入力して動画を追加してください</div>';
+    return;
+  }
+  el.innerHTML = queue.map((v, i) => `
+    <div class="queue-item ${i === currentVidIndex ? 'playing' : ''}" onclick="playQueueItem(${i})">
+      <div class="q-thumb">
+        ${v.thumb ? `<img src="${v.thumb}" alt="">` : '<div style="width:100%;height:100%;background:var(--surface3)"></div>'}
+      </div>
+      <div class="q-info">
+        <div class="q-title">${escHtml(v.title)}</div>
+        <div class="q-id">${v.id}</div>
+      </div>
+      <button class="q-del" onclick="event.stopPropagation();removeFromQueue(${i})">✕</button>
+    </div>
+  `).join('');
+}
+
+// ===== PLAYER =====
+let currentVideoId = null;
+
+function playVideo(id, title, channel = '') {
+  currentVideoId = id;
+  document.getElementById('player-section').classList.remove('hidden');
+  document.getElementById('player-wrap').innerHTML =
+    `<iframe src="https://www.youtube.com/embed/${id}?autoplay=1&rel=0"
+      allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>`;
+  document.getElementById('player-title').textContent = title;
+  document.getElementById('player-channel').textContent = channel;
+  document.getElementById('now-bar').classList.add('visible');
+  document.getElementById('now-bar-title').textContent = title;
+
+  // highlight in recent list
+  document.querySelectorAll('.video-card').forEach(el => el.classList.remove('playing'));
+  const vc = document.getElementById(`vc-${id}`);
+  if (vc) vc.classList.add('playing');
+
+  scrollToPlayer();
+}
+
+function playQueueItem(i) {
+  currentVidIndex = i;
+  const v = queue[i];
+  playVideo(v.id, v.title);
+  renderQueue();
+}
+
+function scrollToPlayer() {
+  document.getElementById('player-section').scrollIntoView({ behavior: 'smooth' });
+}
+
+// ===== QUEUE OPS =====
+function extractVideoId(input) {
+  input = input.trim();
+  if (/^[a-zA-Z0-9_-]{11}$/.test(input)) return input;
+  try {
+    const url = new URL(input.startsWith('http') ? input : 'https://' + input);
+    if (url.hostname.includes('youtu.be')) return url.pathname.slice(1).split('?')[0];
+    if (url.hostname.includes('youtube.com')) return url.searchParams.get('v') || url.pathname.split('/').pop();
+  } catch {}
+  const m = input.match(/(?:v=|youtu\.be\/|embed\/)([a-zA-Z0-9_-]{11})/);
+  return m ? m[1] : null;
+}
+
+async function addToQueue() {
+  const input = document.getElementById('url-input').value;
+  const id = extractVideoId(input);
+  if (!id) { showToast('URLを認識できませんでした'); return; }
+  if (queue.find(v => v.id === id)) { showToast('既に追加済みです'); return; }
+
+  const item = { id, title: `動画: ${id}`, thumb: `https://img.youtube.com/vi/${id}/mqdefault.jpg` };
+  queue.push(item);
+  document.getElementById('url-input').value = '';
+  renderQueue();
+
+  // fetch title
+  try {
+    const r = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${id}&format=json`);
+    const d = await r.json();
+    item.title = d.title || item.title;
+    renderQueue();
+  } catch {}
+
+  if (currentVidIndex === -1) playQueueItem(queue.length - 1);
+  showToast('追加しました');
+}
+
+function removeFromQueue(i) {
+  queue.splice(i, 1);
+  if (i === currentVidIndex) currentVidIndex = -1;
+  else if (i < currentVidIndex) currentVidIndex--;
+  renderQueue();
+}
+
+function clearQueue() {
+  queue = [];
+  currentVidIndex = -1;
+  renderQueue();
+  showToast('キューを削除しました');
+}
+
+function shuffleQueue() {
+  queue = shuffle(queue);
+  currentVidIndex = -1;
+  renderQueue();
+  showToast('シャッフルしました');
+}
+
+// ===== TABS =====
+function switchTab(tab) {
+  currentTab = tab;
+  ['home', 'channels', 'queue'].forEach(t => {
+    document.getElementById(`page-${t}`).style.display = t === tab ? '' : 'none';
+  });
+  document.querySelectorAll('.tab').forEach((el, i) => {
+    el.classList.toggle('active', ['home','channels','queue'][i] === tab);
+  });
+}
+
+// ===== UTILS =====
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function formatDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`;
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// Enter key for URL input
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('url-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') addToQueue();
+  });
+});
+</script>
+</body>
+</html>
