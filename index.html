@@ -559,9 +559,11 @@ window.onload = () => {
       const saved = localStorage.getItem('yt_token');
       const expiry = parseInt(localStorage.getItem('yt_token_expiry') || '0');
       dbg('token saved=' + !!saved + ' expiry=' + new Date(expiry).toLocaleTimeString() + ' now=' + new Date().toLocaleTimeString() + ' valid=' + (Date.now() < expiry));
-      if (saved && Date.now() < expiry) {
+      // expiryがない古いトークンはそのまま使う（フォールバック）
+      const noExpiry = expiry === 0;
+      if (saved && (noExpiry || Date.now() < expiry)) {
         accessToken = saved;
-        dbg('calling onLoggedIn');
+        dbg('calling onLoggedIn noExpiry=' + noExpiry);
         onLoggedIn();
       } else {
         localStorage.removeItem('yt_token');
@@ -691,11 +693,14 @@ async function doSearch() {
 async function loadSubscriptions() {
   subscriptions = [];
   let pageToken = '';
+  dbg('loadSubscriptions start, token=' + (accessToken ? 'ok' : 'null'));
   try {
     while (true) {
       const params = { part: 'snippet', mine: true, maxResults: 50, order: 'alphabetical' };
       if (pageToken) params.pageToken = pageToken;
+      dbg('fetching subscriptions page...');
       const data = await apiGet('/subscriptions', params);
+      dbg('got ' + (data.items||[]).length + ' items, next=' + !!data.nextPageToken);
       const items = (data.items || []).map(i => ({
         id: i.snippet.resourceId.channelId,
         name: i.snippet.title,
