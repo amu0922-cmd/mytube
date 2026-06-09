@@ -871,12 +871,16 @@ function stopPreview() {
 function renderChannels() {
   const el = document.getElementById('channel-list');
   if (!subscriptions.length) { el.innerHTML = '<div class="empty">チャンネルが見つかりません</div>'; return; }
-  el.innerHTML = subscriptions.map(ch => `
-    <div class="channel-item" onclick="loadChannelVideos('${ch.id}','${escAttr(ch.name)}')">
-      <div class="ch-icon">${ch.thumb ? `<img src="${ch.thumb}" alt="" onerror="this.parentNode.innerHTML='<div class=ch-ph>📺</div>'">` : `<div class="ch-ph">📺</div>`}</div>
-      <div class="ch-info"><div class="ch-name">${escHtml(ch.name)}</div></div>
-      <a class="btn-yt" href="https://www.youtube.com/channel/${ch.id}" target="_blank" onclick="event.stopPropagation()">▶ YT</a>
-    </div>`).join('');
+  el.innerHTML = subscriptions.map(function(ch) {
+    const icon = ch.thumb
+      ? '<img src="' + ch.thumb + '" alt="" onerror="this.parentNode.innerHTML='<div class=ch-ph>📺</div>'">'
+      : '<div class="ch-ph">📺</div>';
+    return '<div class="channel-item" onclick="loadChannelVideos('' + ch.id + '','' + escAttr(ch.name) + '')">'
+      + '<div class="ch-icon">' + icon + '</div>'
+      + '<div class="ch-info"><div class="ch-name">' + escHtml(ch.name) + '</div></div>'
+      + '<a class="btn-yt" href="https://www.youtube.com/channel/' + ch.id + '" target="_blank" onclick="event.stopPropagation()">▶ YT</a>'
+      + '</div>';
+  }).join('');
 }
 
 function renderQueue() {
