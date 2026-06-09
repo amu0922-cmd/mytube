@@ -767,13 +767,20 @@ async function onLoggedIn() {
   document.getElementById('home-content').style.display = '';
   document.getElementById('channels-login-gate').style.display = 'none';
   document.getElementById('channels-content').style.display = '';
+
+  // ローディング表示
+  document.getElementById('recent-videos').innerHTML = '<div class="loading"><div class="spinner"></div>チャンネルを取得中…</div>';
+
   try {
     const r = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', { headers: { Authorization: `Bearer ${accessToken}` } });
     const u = await r.json();
     if (u.picture) { const av = document.getElementById('user-avatar'); av.src = u.picture; av.style.display = ''; }
   } catch {}
+
+  // チャンネル取得を完全に待つ
   await loadSubscriptions();
-  loadRecentVideos();
+  // チャンネル取得完了後に動画取得
+  await loadRecentVideos();
 }
 
 // ===== API =====
@@ -827,6 +834,8 @@ async function loadTrend() {
   }
 }
 
+let playingSlideIndex = -1;
+
 function buildTiktokSlides() {
   const feed = document.getElementById('tiktok-feed');
   feed.innerHTML = '';
@@ -834,52 +843,55 @@ function buildTiktokSlides() {
     const slide = document.createElement('div');
     slide.className = 'tiktok-slide';
     slide.id = `slide-${i}`;
-    slide.style.transform = i === 0 ? 'translateY(0)' : `translateY(${(i) * 100}%)`;
-    // show thumb, load iframe on demand
-    slide.innerHTML = `
-      <img class="slide-thumb" src="${v.thumb}" alt="">
-      <div class="play-icon">▶</div>`;
-    slide.addEventListener('click', () => {
-      if (!slide.querySelector('iframe')) loadSlideVideo(i);
-    });
+    slide.style.transform = i === 0 ? 'translateY(0)' : `translateY(${i * 100}%)`;
+    renderSlideThumb(slide, v, i);
     feed.appendChild(slide);
   });
-  // auto-load first
-  loadSlideVideo(0);
 }
 
-function loadSlideVideo(i) {
+function renderSlideThumb(slide, v, i) {
+  slide.innerHTML = `
+    <img class="slide-thumb" src="${v.thumb}" alt="" style="filter:blur(0) brightness(0.75)">
+    <div style="position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;gap:12px">
+      <div style="width:72px;height:72px;border-radius:50%;border:3px solid rgba(255,255,255,0.8);overflow:hidden">
+        <img src="${v.thumb}" style="width:100%;height:100%;object-fit:cover">
+      </div>
+      <div style="background:rgba(255,0,64,0.9);border-radius:50%;width:56px;height:56px;display:flex;align-items:center;justify-content:center;font-size:24px;cursor:pointer" onclick="playTiktokVideo(${i})">▶</div>
+    </div>`;
+}
+
+function playTiktokVideo(i) {
   const slide = document.getElementById(`slide-${i}`);
-  if (!slide || slide.querySelector('iframe')) return;
   const v = trendVideos[i];
-  slide.innerHTML = `<iframe src="https://www.youtube.com/embed/${v.id}?autoplay=1&mute=${i===0?0:1}&rel=0&playsinline=1&enablejsapi=1"
-    allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>`;
+  playingSlideIndex = i;
+  slide.innerHTML = `
+    <iframe src="https://www.youtube.com/embed/${v.id}?autoplay=1&rel=0&playsinline=1"
+      allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen
+      style="position:absolute;inset:0;width:100%;height:100%;border:none;z-index:1"></iframe>
+    <div id="swipe-capture-${i}" style="position:absolute;inset:0;z-index:2;background:transparent"></div>`;
+  // swipe-captureのタッチでスワイプ処理
+  const cap = document.getElementById(`swipe-capture-${i}`);
+  cap.addEventListener('touchstart', e => { onTiktokTouchStart(e); }, { passive: true });
+  cap.addEventListener('touchmove', e => { onTiktokTouchMove(e); }, { passive: false });
+  cap.addEventListener('touchend', e => { onTiktokTouchEnd(e); }, { passive: true });
 }
 
 function preloadAdjacent(i) {
-  // preload prev and next as muted
-  [i-1, i+1].forEach(j => {
-    if (j >= 0 && j < trendVideos.length) {
-      const slide = document.getElementById(`slide-${j}`);
-      if (slide && !slide.querySelector('iframe')) {
-        const v = trendVideos[j];
-        slide.innerHTML = `<iframe src="https://www.youtube.com/embed/${v.id}?autoplay=0&mute=1&rel=0&playsinline=1"
-          allow="autoplay; encrypted-media; picture-in-picture"></iframe>`;
-      }
-    }
-  });
+  // サムネが既にある場合は何もしない（スワイプ後に表示するだけ）
 }
 
 function goToSlide(newIndex, dir) {
   if (newIndex < 0 || newIndex >= trendVideos.length) return;
   const oldSlide = document.getElementById(`slide-${tiktokIndex}`);
   const newSlide = document.getElementById(`slide-${newIndex}`);
-  // animate
-  oldSlide.style.transform = `translateY(${dir < 0 ? 100 : -100}%)`;
-  newSlide.style.transform = 'translateY(0)';
+  // 古いスライドをサムネに戻す
+  if (oldSlide) {
+    renderSlideThumb(oldSlide, trendVideos[tiktokIndex], tiktokIndex);
+    oldSlide.style.transform = `translateY(${dir < 0 ? 100 : -100}%)`;
+  }
+  if (newSlide) newSlide.style.transform = 'translateY(0)';
   tiktokIndex = newIndex;
-  loadSlideVideo(newIndex);
-  preloadAdjacent(newIndex);
+  playingSlideIndex = -1;
   updateTiktokOverlay();
   updateTiktokDots();
 }
@@ -1020,10 +1032,6 @@ async function loadRecentVideos() {
   const el = document.getElementById('recent-videos');
   el.innerHTML = '<div class="loading"><div class="spinner"></div>読み込み中…</div>';
   document.getElementById('home-section-title').textContent = '最近の動画';
-  // subscriptionsがまだ空なら少し待つ
-  if (!subscriptions.length) {
-    await new Promise(r => setTimeout(r, 1500));
-  }
   try {
     if (!subscriptions.length) { el.innerHTML = '<div class="empty">チャンネルが見つかりませんでした<br>再読み込みしてください</div>'; return; }
     const sample = shuffle([...subscriptions]).slice(0, 10);
