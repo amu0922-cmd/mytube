@@ -666,6 +666,17 @@ async function apiGet(endpoint, params = {}) {
 }
 
 
+
+// ===== SHORTS FILTER =====
+function isShorts(title) {
+  if (!title) return false;
+  const t = title.toLowerCase();
+  return t.includes('#shorts') || t.includes('#short') || t.includes('#ショート');
+}
+function filterShorts(videos) {
+  return videos.filter(v => !isShorts(v.title));
+}
+
 // ===== FOR YOU =====
 const YT_CATEGORIES = {
   '1': 'フィルム・アニメ', '2': '自動車・乗り物', '10': '音楽',
@@ -745,7 +756,7 @@ async function loadForYou() {
       return;
     }
     el.innerHTML = '<div class="foryou-category">あなたがよく見るカテゴリ: <span class="foryou-cat-badge">' + catName + '</span></div>'
-      + '<div class="video-grid">' + videos.map(v => gridCardHTML(v, true)).join('') + '</div>';
+      + '<div class="video-grid">' + filterShorts(videos).map(v => gridCardHTML(v, true)).join('') + '</div>';
   } catch(e) {
     el.innerHTML = '<div class="empty">取得失敗: ' + e.message + '</div>';
     forYouLoaded = false;
@@ -775,7 +786,8 @@ async function loadTrend() {
       date: item.snippet.publishedAt,
       rank: i + 1
     }));
-    el.innerHTML = `<div class="video-grid">${videos.map(v => gridCardHTML(v, true)).join('')}</div>`;
+    const filteredT = filterShorts(videos);
+    el.innerHTML = '<div class="video-grid">' + filteredT.map(v => gridCardHTML(v, true)).join('') + '</div>';
   } catch (e) {
     trendLoaded = false;
     el.innerHTML = `<div class="empty">取得失敗: ${e.message}</div>`;
@@ -861,7 +873,9 @@ async function doSearch() {
       date: item.snippet.publishedAt
     }));
     if (!videos.length) { el.innerHTML = '<div class="empty">結果が見つかりませんでした</div>'; return; }
-    el.innerHTML = '<div class="video-list">' + videos.map(v => listCardHTML(v)).join('') + '</div>';
+    const filteredS = filterShorts(videos);
+    if (!filteredS.length) { el.innerHTML = '<div class="empty">結果が見つかりませんでした</div>'; return; }
+    el.innerHTML = '<div class="video-list">' + filteredS.map(v => listCardHTML(v)).join('') + '</div>';
   } catch (e) { el.innerHTML = '<div class="empty">検索失敗: ' + e.message + '</div>'; }
 }
 
@@ -931,7 +945,7 @@ async function loadRecentVideos() {
         });
       } catch(e) {}
     }
-    recentVideos = shuffle(videos);
+    recentVideos = shuffle(filterShorts(videos));
     if (recentVideos.length === 0) {
       el.innerHTML = '<div class="empty">動画を取得できませんでした<br>更新ボタンをお試しください</div>';
     } else {
@@ -956,8 +970,9 @@ async function loadChannelVideos(chId, chName) {
       thumb: item.snippet.thumbnails?.medium?.url || item.snippet.thumbnails?.default?.url || '',
       date: item.snippet.publishedAt
     }));
-    if (!videos.length) { el.innerHTML = '<div class="empty">動画が見つかりませんでした</div>'; return; }
-    el.innerHTML = '<div class="video-grid">' + videos.map(v => gridCardHTML(v, false)).join('') + '</div>';
+    const filtered = filterShorts(videos);
+    if (!filtered.length) { el.innerHTML = '<div class="empty">動画が見つかりませんでした</div>'; return; }
+    el.innerHTML = '<div class="video-grid">' + filtered.map(v => gridCardHTML(v, false)).join('') + '</div>';
   } catch (e) { el.innerHTML = '<div class="empty">取得失敗: ' + e.message + '</div>'; }
 }
 
