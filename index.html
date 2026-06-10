@@ -2,1387 +2,1815 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PassVault — パスワード管理</title>
+<link rel="icon" type="image/jpeg" href="https://raw.githubusercontent.com/amu0922-cmd/mytube/main/icon.jpg">
 <link rel="manifest" href="manifest.json">
-<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png?v=2">
-<link rel="apple-touch-icon" sizes="180x180" href="icon-180.png?v=2">
-<meta name="theme-color" content="#5b4fff">
+<meta name="theme-color" content="#ff0040">
+<link rel="apple-touch-icon" href="icon.jpg">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="MyTube">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>MyTube</title>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Space+Grotesk:wght@600;700&display=swap');
+
   :root {
-    --bg: #f5f6fa;
+    --bg: #f5f5f7;
     --surface: #ffffff;
-    --surface2: #f0f1f5;
-    --border: #e2e4ed;
-    --accent: #5b4fff;
-    --accent2: #8b7fff;
-    --accent-bg: rgba(91,79,255,.08);
-    --danger: #ef4444;
-    --success: #22c55e;
-    --warn: #f59e0b;
-    --text: #1a1d2e;
-    --muted: #8b90a7;
-    --shadow: 0 2px 12px rgba(0,0,0,.07);
-    --shadow-lg: 0 8px 32px rgba(0,0,0,.12);
-    --mono: 'Courier New', monospace;
+    --surface2: #f0f0f2;
+    --surface3: #e5e5ea;
+    --border: #e0e0e5;
+    --accent: #ff0040;
+    --accent-soft: rgba(255,0,64,0.08);
+    --accent2: #ff4060;
+    --text: #1a1a1a;
+    --text2: #6e6e73;
+    --text3: #aaaaaa;
+    --radius: 12px;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    --shadow-card: 0 1px 6px rgba(0,0,0,0.06);
   }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
   body {
     background: var(--bg);
     color: var(--text);
-    font-family: -apple-system, 'Segoe UI', sans-serif;
-    font-size: 14px;
-    min-height: 100vh;
+    font-family: 'Noto Sans JP', sans-serif;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    overflow-x: hidden;
   }
 
-  /* ===== LOCK SCREEN ===== */
-  #lockScreen {
-    display: flex; flex-direction: column;
-    align-items: center; justify-content: center;
-    min-height: 100vh; gap: 20px; padding: 24px;
-    background: linear-gradient(160deg, #eef0ff 0%, #f5f6fa 60%);
-  }
-  .lock-logo {
-    width: 76px; height: 76px;
-    background: linear-gradient(135deg, var(--accent), var(--accent2));
-    border-radius: 22px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 34px;
-    box-shadow: 0 8px 32px rgba(91,79,255,.35);
-  }
-  .lock-title { font-size: 26px; font-weight: 800; letter-spacing: -0.5px; color: var(--text); }
-  .lock-sub { color: var(--muted); font-size: 13px; margin-top: -8px; }
-  .lock-box {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 18px;
-    padding: 28px;
-    width: 100%; max-width: 380px;
-    display: flex; flex-direction: column; gap: 14px;
-    box-shadow: var(--shadow-lg);
-  }
-  .lock-box label { font-size: 11px; color: var(--muted); font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; }
-  .pw-row { position: relative; }
-  .pw-row input {
-    width: 100%;
-    background: var(--bg);
-    border: 1.5px solid var(--border);
-    border-radius: 11px;
-    color: var(--text);
-    padding: 13px 44px 13px 14px;
-    font-size: 16px;
-    outline: none;
-    transition: border-color .2s;
-    letter-spacing: 3px;
-  }
-  .pw-row input:focus { border-color: var(--accent); background: #fff; }
-  .eye-btn {
-    position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
-    background: none; border: none; color: var(--muted); cursor: pointer;
-    font-size: 18px; padding: 4px;
-  }
-  .btn-primary {
-    background: linear-gradient(135deg, var(--accent), #7c6fff);
-    color: white; border: none; border-radius: 11px;
-    padding: 14px; font-size: 15px; font-weight: 700;
-    cursor: pointer; transition: opacity .2s, transform .1s;
-    box-shadow: 0 4px 14px rgba(91,79,255,.3);
-  }
-  .btn-primary:hover { opacity: .9; }
-  .btn-primary:active { transform: scale(.98); }
-
-  /* 生体認証ボタン */
-  .biometric-btn {
-    background: var(--surface2); border: 1.5px solid var(--border);
-    border-radius: 11px; padding: 13px;
-    font-size: 15px; font-weight: 600; color: var(--text);
-    cursor: pointer; transition: all .2s;
-    display: flex; align-items: center; justify-content: center; gap: 8px;
-  }
-  .biometric-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-bg); }
-  .biometric-reg {
-    font-size: 12px; color: var(--muted); text-align: center; cursor: pointer;
-    padding: 6px; transition: color .2s;
-  }
-  .biometric-reg:hover { color: var(--accent); }
-
-  .lock-divider { display: flex; align-items: center; gap: 10px; }
-  .lock-divider::before, .lock-divider::after { content:''; flex:1; height:1px; background: var(--border); }
-  .lock-divider span { font-size: 11px; color: var(--muted); white-space: nowrap; }
-
-  .lock-opts { display: flex; gap: 10px; }
-  .btn-outline {
-    flex: 1; background: none; border: 1.5px solid var(--border);
-    color: var(--muted); border-radius: 11px;
-    padding: 10px; font-size: 12px; cursor: pointer; transition: all .2s;
-  }
-  .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
-  .import-area {
-    display: none; flex-direction: column; gap: 10px;
-    background: var(--bg); border: 1.5px dashed var(--border);
-    border-radius: 11px; padding: 14px;
-  }
-  .import-area.show { display: flex; }
-  .import-area input[type=file] { display: none; }
-  .import-area label {
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: 8px; padding: 10px 14px;
-    cursor: pointer; text-align: center;
-    font-size: 13px; color: var(--muted);
-    letter-spacing: 0; text-transform: none; font-weight: 400;
-  }
-  .import-area label:hover { border-color: var(--accent); color: var(--accent); }
-  .import-file-name { font-size: 12px; color: var(--muted); text-align: center; }
-  #lockError { color: var(--danger); font-size: 12px; text-align: center; min-height: 16px; }
-
-  /* ===== MAIN APP ===== */
-  #app { display: none; flex-direction: column; min-height: 100vh; }
-  #app.visible { display: flex; }
-
-  .topbar {
-    background: var(--surface);
+  /* HEADER */
+  header {
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(255,255,255,0.92);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     border-bottom: 1px solid var(--border);
-    padding: 0 16px;
-    height: 54px;
-    display: flex; align-items: center; gap: 10px;
-    position: sticky; top: 0; z-index: 100;
-    box-shadow: 0 1px 6px rgba(0,0,0,.05);
-  }
-  .topbar-logo { font-size: 17px; font-weight: 800; letter-spacing: -0.3px; flex: 1; color: var(--text); }
-  .topbar-logo span { color: var(--accent); }
-  .icon-btn {
-    background: none; border: none; color: var(--muted);
-    cursor: pointer; padding: 8px; border-radius: 9px;
-    font-size: 18px; transition: all .2s; line-height: 1;
-  }
-  .icon-btn:hover { background: var(--surface2); color: var(--text); }
-
-  .main-layout { display: flex; flex: 1; overflow: hidden; height: calc(100vh - 54px); }
-
-  /* Sidebar */
-  .sidebar {
-    width: 220px; min-width: 220px;
-    background: var(--surface);
-    border-right: 1px solid var(--border);
-    display: flex; flex-direction: column;
-    overflow-y: auto; padding: 12px 8px; gap: 3px;
-  }
-  .sidebar-section { color: var(--muted); font-size: 10px; font-weight: 800; letter-spacing: 0.9px; padding: 8px 10px 4px; text-transform: uppercase; }
-  .cat-item {
-    display: flex; align-items: center; gap: 9px;
-    padding: 9px 10px; border-radius: 9px;
-    cursor: pointer; transition: all .15s;
-    font-size: 13px; color: var(--muted);
-    border: none; background: none; width: 100%; text-align: left;
-  }
-  .cat-item:hover { background: var(--surface2); color: var(--text); }
-  .cat-item.active { background: var(--accent-bg); color: var(--accent); font-weight: 600; }
-  .cat-icon { width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; }
-  .cat-count { margin-left: auto; background: var(--surface2); border-radius: 10px; padding: 2px 8px; font-size: 11px; }
-  .cat-item.active .cat-count { background: rgba(91,79,255,.15); color: var(--accent); }
-  .sidebar-add {
-    margin: 4px 0; padding: 9px 10px;
-    border: 1.5px dashed var(--border); border-radius: 9px;
-    background: none; color: var(--muted);
-    cursor: pointer; font-size: 13px; text-align: left;
-    display: flex; align-items: center; gap: 8px; transition: all .2s;
-  }
-  .sidebar-add:hover { border-color: var(--accent); color: var(--accent); }
-
-  .content { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
-
-  .content-top { display: flex; gap: 10px; align-items: center; }
-  .search-wrap { flex: 1; position: relative; }
-  .search-wrap input {
-    width: 100%; background: var(--surface);
-    border: 1.5px solid var(--border); border-radius: 11px;
-    color: var(--text); padding: 11px 14px 11px 38px;
-    font-size: 14px; outline: none; transition: border-color .2s;
-    box-shadow: var(--shadow);
-  }
-  .search-wrap input:focus { border-color: var(--accent); }
-  .search-wrap .search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 15px; }
-  .btn-add {
-    background: linear-gradient(135deg, var(--accent), #7c6fff);
-    color: white; border: none; border-radius: 11px;
-    padding: 11px 18px; font-size: 13px; font-weight: 700;
-    cursor: pointer; white-space: nowrap; transition: opacity .2s;
-    box-shadow: 0 3px 10px rgba(91,79,255,.25);
-  }
-  .btn-add:hover { opacity: .88; }
-
-  .cat-header { display: flex; align-items: center; gap: 10px; padding: 2px 0; }
-  .cat-header h2 { font-size: 17px; font-weight: 800; }
-  .cat-count-badge { background: var(--surface2); border-radius: 10px; padding: 3px 10px; font-size: 11px; color: var(--muted); font-weight: 600; }
-
-  .entries-grid { display: flex; flex-direction: column; gap: 8px; }
-  .entry-card {
-    background: var(--surface);
-    border: 1.5px solid var(--border);
-    border-radius: 13px;
-    padding: 14px 16px;
-    cursor: pointer; transition: all .18s;
-    display: flex; align-items: center; gap: 14px;
-    box-shadow: var(--shadow);
-  }
-  .entry-card:hover { border-color: var(--accent); transform: translateY(-1px); box-shadow: 0 4px 16px rgba(91,79,255,.1); }
-  .entry-icon {
-    width: 42px; height: 42px; border-radius: 11px;
-    background: linear-gradient(135deg, var(--accent), #7c6fff);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 20px; flex-shrink: 0; color: white;
-  }
-  .entry-info { flex: 1; min-width: 0; }
-  .entry-title { font-weight: 700; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .entry-sub { color: var(--muted); font-size: 12px; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .entry-actions { display: flex; gap: 4px; opacity: 0; transition: opacity .15s; }
-  .entry-card:hover .entry-actions { opacity: 1; }
-  .tag-pill { display:inline-block; background: var(--accent-bg); color: var(--accent); border-radius: 6px; padding: 1px 7px; font-size: 10px; font-weight: 700; margin-right: 4px; }
-  .entry-tags { margin-top: 3px; }
-
-  /* Modals */
-  .overlay {
-    display: none; position: fixed; inset: 0; z-index: 200;
-    background: rgba(26,29,46,.4); backdrop-filter: blur(6px);
-    align-items: flex-end; justify-content: center; padding: 0;
-  }
-  @media (min-width: 600px) {
-    .overlay { align-items: center; padding: 16px; }
-  }
-  .overlay.show { display: flex; }
-  .modal {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 20px 20px 0 0;
-    width: 100%; max-width: 480px;
-    max-height: 92vh; overflow-y: auto;
-    display: flex; flex-direction: column;
-    box-shadow: var(--shadow-lg);
-    animation: slideUp .25s ease;
-  }
-  @media (min-width: 600px) {
-    .modal { border-radius: 18px; animation: fadeIn .2s ease; }
-  }
-  @keyframes slideUp { from { transform: translateY(60px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-  @keyframes fadeIn { from { opacity: 0; transform: scale(.97); } to { opacity: 1; transform: scale(1); } }
-
-  /* drag handle for mobile */
-  .modal::before {
-    content: '';
-    display: block;
-    width: 36px; height: 4px;
-    background: var(--border);
-    border-radius: 2px;
-    margin: 10px auto 0;
-  }
-  @media (min-width: 600px) { .modal::before { display: none; } }
-
-  .modal-header {
-    padding: 16px 20px 0;
+    padding: calc(var(--safe-top) + 12px) 16px 12px;
     display: flex; align-items: center; gap: 12px;
   }
-  .modal-title { font-size: 16px; font-weight: 800; flex: 1; }
-  .modal-body { padding: 18px 20px; display: flex; flex-direction: column; gap: 14px; }
-  .modal-footer { padding: 0 20px 20px; display: flex; gap: 10px; }
-
-  .form-group { display: flex; flex-direction: column; gap: 6px; }
-  .form-label { font-size: 11px; color: var(--muted); font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; }
-  .form-input {
-    background: var(--bg); border: 1.5px solid var(--border);
-    border-radius: 11px; color: var(--text);
-    padding: 11px 14px; font-size: 14px; outline: none;
-    transition: border-color .2s; width: 100%;
+  .logo {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700; font-size: 22px; letter-spacing: -1px;
+    color: var(--text); flex-shrink: 0;
   }
-  .form-input:focus { border-color: var(--accent); background: #fff; }
-  .form-row { display: flex; gap: 10px; }
-  .form-row .form-group { flex: 1; }
-  .pw-field-wrap { position: relative; }
-  .pw-field-wrap .form-input { padding-right: 90px; font-family: var(--mono); letter-spacing: 1px; }
-  .pw-field-actions {
-    position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
-    display: flex; gap: 4px;
+  .logo em { color: var(--accent); font-style: normal; }
+  .header-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+  .avatar { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; border: 2px solid var(--accent); display: none; }
+  .btn-login {
+    background: var(--accent); color: #fff; border: none;
+    border-radius: 20px; padding: 8px 16px;
+    font-family: 'Space Grotesk', sans-serif; font-weight: 700;
+    font-size: 12px; cursor: pointer;
   }
-  .pw-field-actions button {
-    background: var(--surface); border: 1px solid var(--border); color: var(--muted);
-    cursor: pointer; padding: 5px 8px; border-radius: 7px;
-    font-size: 12px; transition: all .2s;
+  .btn-icon {
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text2); border-radius: 8px;
+    width: 34px; height: 34px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; cursor: pointer;
   }
-  .pw-field-actions button:hover { color: var(--accent); border-color: var(--accent); }
-  .strength-bar { height: 4px; border-radius: 2px; background: var(--border); margin-top: 6px; overflow: hidden; }
-  .strength-fill { height: 100%; border-radius: 2px; transition: all .3s; }
-  .memo-input { min-height: 80px; resize: vertical; font-family: inherit; }
-  .category-sel { appearance: none; cursor: pointer; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238b90a7' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 36px; }
 
-  .btn-danger { background: #fff0f0; border: 1.5px solid #fecaca; color: var(--danger); border-radius: 11px; padding: 11px 16px; cursor: pointer; font-size: 14px; font-weight: 700; transition: all .2s; }
-  .btn-danger:hover { background: #fee2e2; }
-  .btn-ghost { background: var(--surface2); border: 1.5px solid var(--border); color: var(--text); border-radius: 11px; padding: 11px 16px; cursor: pointer; font-size: 14px; font-weight: 600; transition: all .2s; }
-  .btn-ghost:hover { border-color: var(--muted); }
-
-  /* Detail */
-  .detail-field { background: var(--bg); border: 1.5px solid var(--border); border-radius: 11px; padding: 12px 14px; display: flex; align-items: center; gap: 10px; }
-  .detail-field-inner { flex: 1; min-width: 0; }
-  .detail-field-label { font-size: 10px; color: var(--muted); font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; margin-bottom: 3px; }
-  .detail-field-value { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
-  .detail-field-value.masked { letter-spacing: 4px; font-family: var(--mono); }
-  .copy-btn { background: var(--surface); border: 1.5px solid var(--border); color: var(--muted); cursor: pointer; padding: 7px 11px; border-radius: 9px; font-size: 12px; white-space: nowrap; transition: all .2s; font-weight: 600; }
-  .copy-btn:hover { background: var(--accent); border-color: var(--accent); color: white; }
-  .copy-btn.copied { background: var(--success); border-color: var(--success); color: white; }
-
-  /* Toast */
-  .toast {
-    position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
-    background: var(--text); color: white;
-    padding: 11px 20px; border-radius: 12px;
-    font-size: 13px; font-weight: 600; z-index: 9999;
-    opacity: 0; transition: opacity .3s;
-    pointer-events: none; white-space: nowrap;
-    box-shadow: 0 4px 20px rgba(0,0,0,.2);
+  /* TABS */
+  .tabs {
+    touch-action: pan-x;
+    display: flex; gap: 6px; padding: 10px 16px;
+    background: rgba(255,255,255,0.92);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto; scrollbar-width: none;
+    position: sticky; top: calc(var(--safe-top) + 57px); z-index: 40;
   }
-  .toast.show { opacity: 1; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab {
+    flex-shrink: 0; padding: 7px 16px; border-radius: 20px;
+    font-size: 13px; font-weight: 500; cursor: pointer;
+    border: 1.5px solid var(--border); background: var(--surface);
+    color: var(--text2); transition: all 0.2s;
+    white-space: nowrap;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+  .tab.active { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
 
-  /* Generator */
-  .gen-options { display: flex; flex-wrap: wrap; gap: 8px; }
-  .gen-toggle { background: var(--bg); border: 1.5px solid var(--border); color: var(--muted); border-radius: 8px; padding: 7px 12px; cursor: pointer; font-size: 12px; font-weight: 600; transition: all .2s; }
-  .gen-toggle.active { background: var(--accent-bg); border-color: var(--accent); color: var(--accent); }
-  .gen-len-row { display: flex; align-items: center; gap: 12px; }
-  .gen-len-row input[type=range] { flex: 1; accent-color: var(--accent); }
-  .gen-len-val { font-size: 15px; font-weight: 800; min-width: 28px; text-align: center; color: var(--accent); }
+  main { flex: 1; display: flex; flex-direction: column; }
 
-  /* Empty */
-  .empty-state { text-align: center; padding: 60px 24px; color: var(--muted); }
-  .empty-state .empty-icon { font-size: 48px; margin-bottom: 16px; }
-  .empty-state h3 { font-size: 15px; color: var(--text); font-weight: 700; margin-bottom: 6px; }
+  /* PLAYER */
+  #player-section { background: #000; }
+  #player-section.hidden { display: none; }
+  #player-wrap { width: 100%; aspect-ratio: 16/9; background: #000; position: relative; }
+  #yt-container { width: 100%; height: 100%; position: absolute; inset: 0; }
+  #player-wrap iframe, #player-wrap video { width: 100%; height: 100%; border: none; display: block; }
+  .player-info {
+    padding: 12px 16px; background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    box-shadow: var(--shadow);
+  }
+  .player-title { font-size: 14px; font-weight: 600; line-height: 1.4; margin-bottom: 3px; }
+  .player-channel { font-size: 12px; color: var(--text2); }
 
-  @media (max-width: 600px) { .sidebar { display: none; } }
-</style>
+  /* RELATED */
+  #related-section { padding: 0 16px 8px; background: var(--surface); border-bottom: 1px solid var(--border); }
+  .related-title {
+    font-family: 'Space Grotesk', sans-serif; font-size: 11px;
+    font-weight: 700; color: var(--text2); text-transform: uppercase;
+    letter-spacing: 1px; padding: 12px 0 8px;
+  }
+
+  /* VIDEO GRID - big thumbnails */
+  .video-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    padding: 16px;
+  }
+
+  .video-card {
+    background: var(--surface);
+    border-radius: var(--radius);
+    overflow: hidden;
+    cursor: pointer;
+    box-shadow: var(--shadow-card);
+    border: 1.5px solid transparent;
+    transition: box-shadow 0.2s, border-color 0.2s;
+    position: relative;
+  }
+  .video-card:active { box-shadow: none; }
+  .video-card.playing { border-color: var(--accent); }
+  .video-card.previewing { border-color: #ff8800; }
+
+  .video-card .thumb-wrap {
+    width: 100%;
+    aspect-ratio: 16/9;
+    background: var(--surface3);
+    overflow: hidden;
+    position: relative;
+  }
+  .video-card .thumb-wrap img {
+    width: 100%; height: 100%; object-fit: cover;
+    display: block; transition: transform 0.2s;
+  }
+  .video-card:active .thumb-wrap img { transform: scale(0.97); }
+
+  .thumb-ph {
+    width: 100%; height: 100%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28px; color: var(--text3); background: var(--surface3);
+  }
+
+  /* preview iframe inside card */
+  .preview-frame {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    border: none;
+  }
+
+  .play-badge {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(255,0,64,0.12);
+    font-size: 28px;
+    pointer-events: none;
+  }
+
+  .video-card .card-body {
+    padding: 8px 10px 10px;
+  }
+  .card-title {
+    font-size: 12px; font-weight: 500; line-height: 1.4;
+    display: -webkit-box; -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical; overflow: hidden;
+    margin-bottom: 4px; color: var(--text);
+  }
+  .card-channel { font-size: 11px; color: var(--text2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .card-date { font-size: 10px; color: var(--text3); margin-top: 2px; }
+
+  /* RANK BADGE */
+  .rank-badge {
+    position: absolute; top: 6px; left: 6px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700; font-size: 13px;
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    pointer-events: none; z-index: 2;
+  }
+  .rank-1 { background: #FFD700; color: #7a5000; }
+  .rank-2 { background: #C0C0C0; color: #444; }
+  .rank-3 { background: #CD7F32; color: #fff; }
+  .rank-n { background: rgba(0,0,0,0.55); color: #fff; font-size: 11px; }
+
+  /* LIST layout for related / search */
+  .video-list { display: flex; flex-direction: column; gap: 10px; padding: 12px 16px; }
+
+  .video-list-card {
+    display: flex; gap: 10px; cursor: pointer;
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 8px;
+    box-shadow: var(--shadow-card);
+    border: 1.5px solid transparent;
+    transition: box-shadow 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+  .video-list-card:active { box-shadow: none; }
+  .video-list-card.playing { border-color: var(--accent); }
+  .video-list-card.previewing { border-color: #ff8800; }
+
+  .list-thumb-wrap {
+    width: 110px; height: 62px; border-radius: 8px;
+    background: var(--surface3); overflow: hidden; flex-shrink: 0;
+    position: relative;
+  }
+  .list-thumb-wrap img { width: 100%; height: 100%; object-fit: cover; }
+
+  .list-meta { flex: 1; min-width: 0; }
+  .list-title {
+    font-size: 12px; font-weight: 500; line-height: 1.4;
+    display: -webkit-box; -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 4px;
+  }
+  .list-channel { font-size: 11px; color: var(--text2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .list-date { font-size: 10px; color: var(--text3); margin-top: 2px; }
+
+  /* SECTION HEADER */
+  .section-hd {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 16px 4px;
+  }
+  .section-hd h3 {
+    font-family: 'Space Grotesk', sans-serif; font-size: 15px;
+    font-weight: 700; color: var(--text);
+  }
+  .section-hd a { font-size: 12px; color: var(--accent); cursor: pointer; text-decoration: none; }
+
+  /* SEARCH */
+  #page-search { padding-top: 4px; }
+  .search-bar { display: flex; gap: 8px; padding: 12px 16px; }
+  .search-input {
+    flex: 1; background: var(--surface); border: 1.5px solid var(--border);
+    border-radius: 24px; padding: 12px 18px; color: var(--text);
+    font-size: 14px; outline: none; font-family: inherit;
+    box-shadow: var(--shadow-card);
+  }
+  .search-input:focus { border-color: var(--accent); }
+  .search-input::placeholder { color: var(--text3); }
+  .btn-search {
+    background: var(--accent); color: #fff; border: none;
+    border-radius: 24px; padding: 12px 20px; font-size: 16px; cursor: pointer;
+  }
+
+  /* CHANNELS */
+  #page-channels { padding: 16px; }
+  .channel-list { display: flex; flex-direction: column; gap: 2px; }
+  .channel-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 8px; border-radius: var(--radius);
+    cursor: pointer; transition: background 0.15s;
+    background: var(--surface); margin-bottom: 4px;
+    box-shadow: var(--shadow-card);
+  }
+  .channel-item:active { background: var(--surface2); }
+  .ch-icon { width: 44px; height: 44px; border-radius: 50%; background: var(--surface3); overflow: hidden; flex-shrink: 0; }
+  .ch-icon img { width: 100%; height: 100%; object-fit: cover; }
+  .ch-ph { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+  .ch-info { flex: 1; min-width: 0; }
+  .ch-name { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ch-arrow { color: var(--text3); font-size: 18px; }
+  .btn-yt {
+    background: #ff0000; color: #fff; border: none;
+    border-radius: 8px; padding: 6px 10px;
+    font-size: 11px; font-weight: 700; cursor: pointer;
+    white-space: nowrap; flex-shrink: 0;
+    text-decoration: none; display: inline-flex; align-items: center; gap: 4px;
+  }
+
+  /* QUEUE */
+  #page-queue { padding: 16px; }
+  .queue-actions { display: flex; gap: 8px; margin-bottom: 16px; }
+  .btn-sm {
+    flex: 1; background: var(--surface); border: 1.5px solid var(--border);
+    color: var(--text); border-radius: 10px; padding: 10px;
+    font-size: 12px; font-weight: 500; cursor: pointer; text-align: center;
+    box-shadow: var(--shadow-card);
+  }
+  .btn-sm.danger { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+  .input-row { display: flex; gap: 8px; margin-bottom: 16px; }
+  .url-input {
+    flex: 1; background: var(--surface); border: 1.5px solid var(--border);
+    border-radius: 10px; padding: 11px 14px; color: var(--text);
+    font-size: 13px; outline: none; font-family: inherit;
+    box-shadow: var(--shadow-card);
+  }
+  .url-input:focus { border-color: var(--accent); }
+  .url-input::placeholder { color: var(--text3); }
+  .btn-add {
+    background: var(--accent); color: #fff; border: none;
+    border-radius: 10px; padding: 11px 16px;
+    font-weight: 700; font-size: 13px; cursor: pointer;
+    font-family: 'Space Grotesk', sans-serif;
+  }
+  .queue-item {
+    display: flex; align-items: center; gap: 10px; padding: 8px;
+    border-radius: var(--radius); cursor: pointer;
+    border: 1.5px solid transparent; position: relative;
+    background: var(--surface); margin-bottom: 6px;
+    box-shadow: var(--shadow-card);
+  }
+  .queue-item:active { background: var(--surface2); }
+  .queue-item.playing { border-color: var(--accent); background: var(--accent-soft); }
+  .queue-item.playing::before {
+    content: ''; position: absolute; left: 0; top: 6px; bottom: 6px;
+    width: 3px; background: var(--accent); border-radius: 2px;
+  }
+  .q-thumb { width: 80px; height: 45px; border-radius: 6px; background: var(--surface3); overflow: hidden; flex-shrink: 0; }
+  .q-thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .q-info { flex: 1; min-width: 0; }
+  .q-title { font-size: 12px; font-weight: 500; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.4; margin-bottom: 3px; }
+  .q-id { font-size: 10px; color: var(--text3); font-family: monospace; }
+  .q-del { background: none; border: none; color: var(--text3); font-size: 18px; padding: 6px; cursor: pointer; flex-shrink: 0; }
+
+  /* LOGIN GATE */
+  .login-gate {
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 40px 24px; text-align: center; gap: 16px;
+  }
+  .login-gate .icon { font-size: 52px; opacity: 0.25; }
+  .login-gate h2 { font-family: 'Space Grotesk', sans-serif; font-size: 18px; font-weight: 700; }
+  .login-gate p { font-size: 13px; color: var(--text2); line-height: 1.7; max-width: 280px; }
+
+  /* LOADING / EMPTY */
+  .loading { display: flex; flex-direction: column; align-items: center; padding: 40px; gap: 12px; color: var(--text2); font-size: 13px; }
+  .spinner { width: 26px; height: 26px; border: 2.5px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .empty { text-align: center; padding: 40px 24px; color: var(--text2); font-size: 13px; line-height: 1.8; }
+
+  /* TOAST */
+  #toast {
+    position: fixed; bottom: calc(20px + var(--safe-bottom)); left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: rgba(30,30,30,0.92); color: #fff;
+    padding: 10px 20px; border-radius: 20px;
+    font-size: 13px; transition: transform 0.3s ease; z-index: 200;
+    white-space: nowrap; max-width: 90vw; overflow: hidden; text-overflow: ellipsis;
+    backdrop-filter: blur(8px);
+  }
+  #toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* NOW BAR */
+  #now-bar {
+    position: sticky; bottom: 0;
+    background: rgba(255,255,255,0.95);
+    backdrop-filter: blur(12px);
+    border-top: 1px solid var(--border);
+    padding: 10px 16px calc(10px + var(--safe-bottom));
+    display: none; align-items: center; gap: 10px; z-index: 40;
+    box-shadow: 0 -2px 12px rgba(0,0,0,0.06);
+  }
+  #now-bar.visible { display: flex; }
+  .now-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); animation: pulse 1.5s infinite; flex-shrink: 0; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+  #now-bar-title { flex: 1; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
+  .now-bar-scroll { background: var(--surface2); border: 1px solid var(--border); color: var(--text2); border-radius: 8px; padding: 5px 10px; font-size: 11px; cursor: pointer; white-space: nowrap; }
+
+  /* HOME */
+  #page-home { padding-bottom: 20px; }
+  #page-search { padding-bottom: 20px; }
+
+  .resume-badge {
+    position: absolute; bottom: 4px; left: 4px;
+    background: rgba(255,0,64,0.88); color: #fff;
+    font-size: 10px; font-weight: 700; padding: 2px 7px;
+    border-radius: 8px; pointer-events: none;
+  }
+
+
+  /* SEARCH HISTORY */
+  #search-history-section { padding: 0 16px; }
+  .search-kw-list { display: flex; flex-wrap: wrap; gap: 8px; padding: 8px 0 16px; }
+  .search-kw-tag {
+    display: flex; align-items: center; gap: 6px;
+    background: var(--surface); border: 1.5px solid var(--border);
+    border-radius: 20px; padding: 6px 12px;
+    font-size: 13px; cursor: pointer;
+    box-shadow: var(--shadow-card);
+    transition: border-color 0.2s;
+  }
+  .search-kw-tag:active { border-color: var(--accent); }
+  .search-kw-count {
+    background: var(--accent); color: #fff;
+    border-radius: 10px; font-size: 10px; font-weight: 700;
+    padding: 1px 6px; min-width: 18px; text-align: center;
+  }
+  .search-kw-del {
+    color: var(--text3); font-size: 14px; cursor: pointer;
+    padding: 0 2px; line-height: 1;
+  }
+  .foryou-category {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 16px 4px;
+    font-size: 12px; color: var(--text2);
+  }
+  .foryou-cat-badge {
+    background: var(--accent-soft); color: var(--accent);
+    border: 1px solid var(--accent); border-radius: 12px;
+    padding: 3px 10px; font-size: 11px; font-weight: 700;
+  }
+
+
+  /* OMAKASE */
+  .omakase-kw-grid {
+    display: flex; flex-wrap: wrap; gap: 10px; padding: 8px 0;
+  }
+  .omakase-kw-card {
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    background: var(--surface); border: 1.5px solid var(--border);
+    border-radius: 14px; padding: 14px 16px; cursor: pointer;
+    box-shadow: var(--shadow-card); transition: all 0.2s;
+    min-width: 80px; position: relative;
+  }
+  .omakase-kw-card:active { transform: scale(0.96); border-color: var(--accent); }
+  .omakase-kw-card.loading { border-color: var(--accent); background: var(--accent-soft); }
+  .omakase-kw-emoji { font-size: 28px; }
+  .omakase-kw-label { font-size: 12px; font-weight: 600; color: var(--text); }
+  .omakase-kw-del {
+    position: absolute; top: 4px; right: 6px;
+    color: var(--text3); font-size: 14px; cursor: pointer;
+    padding: 2px 4px; line-height: 1;
+  }
+  .omakase-kw-del:active { color: var(--accent); }
+  .omakase-now {
+    margin: 0 16px 16px;
+    background: var(--accent-soft); border: 1.5px solid var(--accent);
+    border-radius: var(--radius); padding: 12px 16px;
+    font-size: 13px; font-weight: 500; color: var(--accent);
+    display: none;
+  }
+
+
+  /* KEIBA */
+  .keiba-cat-btn {
+    flex-shrink: 0; padding: 6px 14px; border-radius: 16px;
+    font-size: 12px; font-weight: 600; cursor: pointer;
+    border: 1.5px solid var(--border); background: var(--surface);
+    color: var(--text2); white-space: nowrap; transition: all 0.2s;
+  }
+  .keiba-cat-btn.active {
+    background: #1a6b3a; border-color: #1a6b3a; color: #fff;
+  }
+
+  </style>
 </head>
 <body>
 
-<!-- LOCK SCREEN -->
-<div id="lockScreen">
-  <button class="icon-btn" onclick="hardReload()" title="更新" style="position:fixed; top:14px; right:14px; background:var(--surface); border:1px solid var(--border); box-shadow:var(--shadow); border-radius:50%; width:38px; height:38px; display:flex; align-items:center; justify-content:center;">🔄</button>
-  <div class="lock-logo">🔐</div>
-  <div style="text-align:center">
-    <div class="lock-title">PassVault</div>
-    <div class="lock-sub" style="margin-top:6px">あなたのパスワードを安全に保管</div>
+<header>
+  <img src="https://raw.githubusercontent.com/amu0922-cmd/mytube/main/icon.jpg" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid var(--accent);flex-shrink:0">
+  <div class="logo">My<em>Tube</em></div>
+  <div class="header-right">
+    <img class="avatar" id="user-avatar" src="" alt="">
+    <button class="btn-login" id="btn-login" onclick="handleLogin()">Googleでログイン</button>
+    <button class="btn-icon" id="btn-logout" style="display:none" onclick="handleLogout()" title="ログアウト">⏻</button>
   </div>
-  <div class="lock-box">
-    <!-- 生体認証セクション (登録済み時に優先表示) -->
-    <div id="biometricSection" style="display:none; flex-direction:column; gap:10px">
-      <button class="biometric-btn" id="biometricBtn" onclick="unlockBiometric()">
-        <span style="font-size:22px">👤</span> 顔認証 / 指紋認証でロック解除
-      </button>
-      <div id="biometricError" style="color:var(--danger);font-size:12px;text-align:center;min-height:16px"></div>
-      <div class="lock-divider"><span>または</span></div>
-      <div class="biometric-reg" onclick="showPasswordSection()">🔑 マスターパスワードを使う</div>
-    </div>
+</header>
 
-    <!-- パスワードセクション -->
-    <div id="passwordSection" style="display:flex; flex-direction:column; gap:14px">
-      <div>
-        <label>マスターパスワード</label>
-        <div class="pw-row" style="margin-top:7px">
-          <input type="password" id="masterPwInput" placeholder="パスワードを入力" autocomplete="current-password">
-          <button class="eye-btn" onclick="toggleMasterPw()">👁</button>
-        </div>
-      </div>
-      <div id="lockError"></div>
-      <button class="btn-primary" onclick="unlock()">ロック解除</button>
+<div class="tabs">
+  <button class="tab active" id="tab-home" onclick="switchTab('home')">ホーム</button>
+  <button class="tab" id="tab-keiba" onclick="switchTab('keiba')">🐴 競馬</button>
+  <button class="tab" id="tab-trend" onclick="switchTab('trend')">🏆 トレンド</button>
+  <button class="tab" id="tab-foryou" onclick="switchTab('foryou')">🎯 あなた向け</button>
+  <button class="tab" id="tab-omakase" onclick="switchTab('omakase')">🎰 おまかせ</button>
+  <button class="tab" id="tab-search" onclick="switchTab('search')">🔍 検索</button>
+  <button class="tab" id="tab-channels" onclick="switchTab('channels')">チャンネル</button>
+  <button class="tab" id="tab-history" onclick="switchTab('history')">🕐 履歴</button>
+  <button class="tab" id="tab-queue" onclick="switchTab('queue')">キュー</button>
+</div>
 
-      <!-- 生体認証登録リンク (未登録時のみ) -->
-      <div id="biometricRegSection">
-        <div class="biometric-reg" onclick="registerBiometric()">🔒 顔認証・指紋認証を登録する</div>
-      </div>
-
-      <div class="lock-opts">
-        <button class="btn-outline" onclick="toggleImport()">📥 SisPassインポート</button>
-        <button class="btn-outline" onclick="startFresh()">✨ 新規作成</button>
-      </div>
-      <div class="import-area" id="importArea">
-        <div style="font-size:12px;color:var(--muted);text-align:center">SisPassMgr の .db ファイルを選択</div>
-        <label for="dbFile">📂 ファイルを選択</label>
-        <input type="file" id="dbFile" accept=".db" onchange="loadFile(this)">
-        <div class="import-file-name" id="fileName">ファイル未選択</div>
-      </div>
-    </div>
+<div id="player-section" class="hidden">
+  <div id="player-wrap" style="position:relative">
+    <button id="player-close" onclick="closePlayer()" style="position:absolute;top:8px;right:8px;z-index:10;width:32px;height:32px;border-radius:50%;background:rgba(0,0,0,0.6);border:none;color:#fff;font-size:18px;display:flex;align-items:center;justify-content:center;cursor:pointer;line-height:1">✕</button>
+  </div>
+  <div class="player-info">
+    <div class="player-title" id="player-title">—</div>
+    <div class="player-channel" id="player-channel"></div>
   </div>
 </div>
 
-<!-- MAIN APP -->
-<div id="app">
-  <div class="topbar">
-    <div class="topbar-logo">Pass<span>Vault</span></div>
-    <button class="icon-btn" onclick="openGenModal()" title="パスワード生成">⚡</button>
-    <button class="icon-btn" onclick="triggerImport()" title="インポート">📥</button>
-    <input type="file" id="importFileInput" accept=".json" style="display:none" onchange="handleImportFile(this)">
-    <button class="icon-btn" onclick="hardReload()" title="更新">🔄</button>
-    <button class="icon-btn" onclick="exportData()" title="エクスポート">📤</button>
-    <button class="icon-btn" onclick="lockApp()" title="ロック">🔒</button>
-  </div>
-  <div class="main-layout">
-    <div class="sidebar">
-      <div class="sidebar-section">カテゴリ</div>
-      <button class="cat-item active" onclick="selectCategory('__all__')" id="cat-all">
-        <div class="cat-icon" style="background:var(--accent-bg)">🏠</div>
-        すべて
-        <span class="cat-count" id="count-all">0</span>
-      </button>
-      <div id="categoryList"></div>
-      <button class="sidebar-add" onclick="openCatModal()">＋ カテゴリを追加</button>
-      <div class="sidebar-section">その他</div>
-      <button class="cat-item" onclick="selectCategory('__trash__')" id="cat-trash">
-        <div class="cat-icon" style="background:var(--surface2)">🗑️</div>
-        ゴミ箱
-        <span class="cat-count" id="count-trash">0</span>
-      </button>
-    </div>
-    <div class="content">
-      <div class="content-top">
-        <div class="search-wrap">
-          <span class="search-icon">🔍</span>
-          <input type="text" placeholder="検索..." id="searchInput" oninput="renderEntries()">
-        </div>
-        <button class="btn-add" id="btnAdd" onclick="openEntryModal()">＋ 追加</button>
-      </div>
-      <div class="cat-header">
-        <h2 id="catTitle">すべて</h2>
-        <span class="cat-count-badge" id="catCount">0件</span>
-      </div>
-      <div class="entries-grid" id="entriesGrid"></div>
-    </div>
-  </div>
+<div id="related-section" style="display:none">
+  <div class="related-title">関連動画</div>
+  <div id="related-list" class="video-list"></div>
 </div>
 
-<!-- DETAIL MODAL -->
-<div class="overlay" id="detailOverlay" onclick="closeOnBg(this,'detailOverlay')">
-  <div class="modal" onclick="event.stopPropagation()">
-    <div class="modal-header">
-      <div id="detailIcon" class="entry-icon" style="width:44px;height:44px;font-size:22px"></div>
-      <div class="modal-title" id="detailTitle"></div>
-      <button class="icon-btn" onclick="closeModal('detailOverlay')">✕</button>
+<main>
+
+
+  <!-- KEIBA -->
+  <div id="page-keiba" style="display:none">
+    <div class="section-hd">
+      <h3>🐴 競馬動画</h3>
+      <a onclick="loadKeiba()">更新</a>
     </div>
-    <div class="modal-body" id="detailBody"></div>
-    <div class="modal-footer">
-      <button class="btn-danger" onclick="deleteCurrentEntry()">削除</button>
-      <div style="flex:1"></div>
-      <button class="btn-ghost" onclick="closeModal('detailOverlay')">閉じる</button>
-      <button class="btn-primary" onclick="editCurrentEntry()">編集</button>
+    <div style="padding:0 16px 8px;display:flex;gap:6px;overflow-x:auto;scrollbar-width:none">
+      <button class="keiba-cat-btn active" onclick="filterKeiba('all',this)">すべて</button>
+      <button class="keiba-cat-btn" onclick="filterKeiba('jra',this)">JRA</button>
+      <button class="keiba-cat-btn" onclick="filterKeiba('local',this)">地方</button>
+      <button class="keiba-cat-btn" onclick="filterKeiba('youtuber',this)">予想・実況</button>
+      <button class="keiba-cat-btn" onclick="filterKeiba('overseas',this)">海外</button>
+    </div>
+    <div id="keiba-videos"></div>
+  </div>
+
+  <!-- HOME -->
+  <div id="page-home" style="display:none">
+    <div id="home-login-gate" class="login-gate">
+      <img src="https://raw.githubusercontent.com/amu0922-cmd/mytube/main/icon.jpg" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid var(--accent);margin-bottom:4px">
+      <h2>登録チャンネルを表示</h2>
+      <p>Googleアカウントでログインすると、登録チャンネルの最新動画が表示されます。</p>
+      <button class="btn-login" onclick="handleLogin()">Googleでログイン</button>
+    </div>
+    <div id="home-content" style="display:none">
+      <div class="section-hd">
+        <h3 id="home-section-title">最近の動画</h3>
+        <a onclick="loadRecentVideos()">更新</a>
+      </div>
+      <div id="recent-videos"></div>
     </div>
   </div>
-</div>
 
-<!-- EDIT MODAL -->
-<div class="overlay" id="editOverlay" onclick="closeOnBg(this,'editOverlay')">
-  <div class="modal" onclick="event.stopPropagation()">
-    <div class="modal-header">
-      <div class="modal-title" id="editModalTitle">新しいエントリ</div>
-      <button class="icon-btn" onclick="closeModal('editOverlay')">✕</button>
+  <!-- TREND -->
+  <div id="page-trend" style="display:none">
+    <div class="section-hd">
+      <h3>🇯🇵 日本のトレンド Top100</h3>
+      <a onclick="loadTrend()">更新</a>
     </div>
-    <div class="modal-body">
-      <div class="form-row">
-        <div class="form-group" style="flex:2">
-          <label class="form-label">サービス名 *</label>
-          <input type="text" class="form-input" id="e_title" placeholder="例: Gmail">
-        </div>
-        <div class="form-group" style="flex:1">
-          <label class="form-label">絵文字</label>
-          <input type="text" class="form-input" id="e_emoji" placeholder="🌐" maxlength="2">
-        </div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">カテゴリ</label>
-        <select class="form-input category-sel" id="e_category"></select>
-      </div>
-      <div class="form-group">
-        <label class="form-label">URL</label>
-        <input type="url" class="form-input" id="e_url" placeholder="https://example.com">
-      </div>
-      <div class="form-group">
-        <label class="form-label">ユーザー名 / メール</label>
-        <input type="text" class="form-input" id="e_username" placeholder="user@example.com" autocomplete="off">
-      </div>
-      <div class="form-group">
-        <label class="form-label">パスワード</label>
-        <div class="pw-field-wrap">
-          <input type="password" class="form-input" id="e_password" placeholder="パスワード" autocomplete="new-password">
-          <div class="pw-field-actions">
-            <button onclick="toggleFieldPw('e_password')">👁</button>
-            <button onclick="generateIntoField()" title="生成">⚡</button>
-          </div>
-        </div>
-        <div class="strength-bar"><div class="strength-fill" id="pwStrengthBar"></div></div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">メモ</label>
-        <textarea class="form-input memo-input" id="e_memo" placeholder="メモ（任意）"></textarea>
-      </div>
-      <div class="form-group">
-        <label class="form-label">タグ（カンマ区切り）</label>
-        <input type="text" class="form-input" id="e_tags" placeholder="例: 仕事, 重要, 共有アカウント">
-      </div>
+    <div id="trend-videos"></div>
+  </div>
+
+  <!-- SEARCH -->
+  <div id="page-search" style="display:none">
+    <div class="search-bar">
+      <input class="search-input" id="search-input" placeholder="動画を検索…" />
+      <button class="btn-search" onclick="doSearch()">🔍</button>
     </div>
-    <div class="modal-footer">
-      <button class="btn-ghost" onclick="closeModal('editOverlay')">キャンセル</button>
-      <button class="btn-primary" onclick="saveEntry()">保存</button>
+    <div id="search-history-section">
+      <div class="section-hd" style="padding-top:8px">
+        <h3>🔍 検索履歴</h3>
+        <a onclick="clearSearchHistory()">全削除</a>
+      </div>
+      <div id="search-history-list"></div>
+    </div>
+    <div id="search-results"></div>
+  </div>
+
+  <!-- FOR YOU -->
+  <div id="page-foryou" style="display:none">
+    <div class="section-hd">
+      <h3 id="foryou-title">🎯 あなた向けトレンド</h3>
+      <a onclick="loadForYou()">更新</a>
+    </div>
+    <div id="foryou-videos"></div>
+  </div>
+
+  <!-- CHANNELS -->
+  <div id="page-channels" style="display:none">
+    <div id="channels-login-gate" class="login-gate">
+      <div class="icon">📡</div>
+      <h2>チャンネル一覧</h2>
+      <p>ログインすると登録チャンネルが表示されます。</p>
+      <button class="btn-login" onclick="handleLogin()">Googleでログイン</button>
+    </div>
+    <div id="channels-content" style="display:none">
+      <div class="section-hd">
+        <h3>登録チャンネル</h3>
+        <a onclick="loadSubscriptions()">更新</a>
+      </div>
+      <div id="channel-list" class="channel-list" style="padding:0 16px"></div>
     </div>
   </div>
-</div>
 
-<!-- CATEGORY MODAL -->
-<div class="overlay" id="catOverlay" onclick="closeOnBg(this,'catOverlay')">
-  <div class="modal" onclick="event.stopPropagation()" style="max-width:360px">
-    <div class="modal-header">
-      <div class="modal-title">カテゴリを追加</div>
-      <button class="icon-btn" onclick="closeModal('catOverlay')">✕</button>
+
+
+  <!-- OMAKASE -->
+  <div id="page-omakase" style="display:none">
+    <div class="section-hd">
+      <h3>🎰 おまかせ再生</h3>
     </div>
-    <div class="modal-body">
-      <div class="form-row">
-        <div class="form-group" style="flex:2">
-          <label class="form-label">カテゴリ名</label>
-          <input type="text" class="form-input" id="newCatName" placeholder="例: SNS">
-        </div>
-        <div class="form-group" style="flex:1">
-          <label class="form-label">絵文字</label>
-          <input type="text" class="form-input" id="newCatEmoji" placeholder="📱" maxlength="2">
-        </div>
+    <div style="padding:0 16px 16px">
+      <div id="omakase-keywords" class="omakase-kw-grid"></div>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <input class="url-input" id="omakase-input" placeholder="キーワードを追加… (例: 競馬)" style="border-radius:24px"/>
+        <button class="btn-add" onclick="addOmakaseKeyword()" style="border-radius:24px">追加</button>
       </div>
     </div>
-    <div class="modal-footer">
-      <button class="btn-ghost" onclick="closeModal('catOverlay')">キャンセル</button>
-      <button class="btn-primary" onclick="addCategory()">追加</button>
-    </div>
+    <div id="omakase-result"></div>
   </div>
-</div>
 
-<!-- GENERATOR MODAL -->
-<div class="overlay" id="genOverlay" onclick="closeOnBg(this,'genOverlay')">
-  <div class="modal" onclick="event.stopPropagation()" style="max-width:400px">
-    <div class="modal-header">
-      <div class="modal-title">⚡ パスワード生成</div>
-      <button class="icon-btn" onclick="closeModal('genOverlay')">✕</button>
+  <!-- HISTORY -->
+  <div id="page-history" style="display:none">
+    <div class="section-hd">
+      <h3>視聴履歴</h3>
+      <a onclick="clearHistory()">🗑 全削除</a>
     </div>
-    <div class="modal-body">
-      <div class="form-group">
-        <label class="form-label">生成結果</label>
-        <div class="pw-field-wrap">
-          <input type="text" class="form-input" id="genResult" readonly style="font-family:var(--mono);letter-spacing:1px">
-          <div class="pw-field-actions">
-            <button onclick="copyGenResult()">📋</button>
-          </div>
-        </div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">文字数</label>
-        <div class="gen-len-row">
-          <input type="range" id="genLen" min="8" max="64" value="16" oninput="updateGenLen();generatePassword()">
-          <span class="gen-len-val" id="genLenVal">16</span>
-        </div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">文字種</label>
-        <div class="gen-options">
-          <button class="gen-toggle active" id="gt_upper" onclick="toggleGenOpt('upper')">A-Z 大文字</button>
-          <button class="gen-toggle active" id="gt_lower" onclick="toggleGenOpt('lower')">a-z 小文字</button>
-          <button class="gen-toggle active" id="gt_digit" onclick="toggleGenOpt('digit')">0-9 数字</button>
-          <button class="gen-toggle active" id="gt_sym" onclick="toggleGenOpt('sym')">記号 !@#</button>
-        </div>
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn-ghost" onclick="generatePassword()">🔄 再生成</button>
-      <button class="btn-primary" onclick="closeModal('genOverlay')">閉じる</button>
-    </div>
+    <div id="history-list"></div>
   </div>
-</div>
 
-<div class="toast" id="toast"></div>
+  <!-- QUEUE -->
+  <div id="page-queue" style="display:none">
+    <div class="input-row">
+      <input class="url-input" id="url-input" placeholder="YouTubeのURLまたは動画IDを入力…" />
+      <button class="btn-add" onclick="addToQueue()">追加</button>
+    </div>
+    <div class="queue-actions">
+      <button class="btn-sm" onclick="shuffleQueue()">🔀 シャッフル</button>
+      <button class="btn-sm danger" onclick="clearQueue()">🗑 全削除</button>
+    </div>
+    <div id="queue-list"></div>
+  </div>
+
+</main>
+
+<div id="now-bar">
+  <div class="now-dot"></div>
+  <div id="now-bar-title">—</div>
+  <div class="now-bar-scroll" onclick="scrollToPlayer()">▲ 動画へ</div>
+</div>
+<div id="toast"></div>
 
 <script>
-// ============================================================
-// STATE
-// ============================================================
-let db = { categories: [], entries: [], trash: [] };
-let masterKey = null;
-let selectedCategory = '__all__';
-let editingId = null;
-let viewingId = null;
-let importedFileContent = null;
-let genOpts = { upper: true, lower: true, digit: true, sym: true };
-let currentMasterPassword = '';
+const CLIENT_ID = '801692007843-5asbch4e2eqiod34p2d0gqjlbi236s5f.apps.googleusercontent.com';
+const SCOPES = 'https://www.googleapis.com/auth/youtube.readonly';
+const API_BASE = 'https://www.googleapis.com/youtube/v3';
 
-const STORAGE_KEY = 'passvault_data';
-const CRED_KEY    = 'passvault_credId';
-const SALT        = 'passvault_salt_2024';
+let accessToken = null;
+let subscriptions = [];
+let queue = [];
+let currentVidIndex = -1;
+let currentTab = 'home';
+let tokenClient = null;
+let recentVideos = [];
+let currentVideoId = null;
+let previewingId = null; // card currently in preview mode
 
-// ============================================================
-// CRYPTO
-// ============================================================
-async function deriveKey(password) {
-  const enc = new TextEncoder();
-  const km = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']);
-  return crypto.subtle.deriveKey(
-    { name:'PBKDF2', salt: enc.encode(SALT), iterations:100000, hash:'SHA-256' },
-    km, { name:'AES-GCM', length:256 }, false, ['encrypt','decrypt']
-  );
-}
-
-async function encryptData(key, data) {
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const enc = new TextEncoder();
-  const ct = await crypto.subtle.encrypt({ name:'AES-GCM', iv }, key, enc.encode(JSON.stringify(data)));
-  const buf = new Uint8Array(iv.length + ct.byteLength);
-  buf.set(iv); buf.set(new Uint8Array(ct), iv.length);
-  return btoa(String.fromCharCode(...buf));
-}
-
-async function decryptData(key, b64) {
-  const raw = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
-  const dec = await crypto.subtle.decrypt({ name:'AES-GCM', iv: raw.slice(0,12) }, key, raw.slice(12));
-  return JSON.parse(new TextDecoder().decode(dec));
-}
-
-async function saveToStorage() {
-  if (!masterKey) return;
-  localStorage.setItem(STORAGE_KEY, await encryptData(masterKey, db));
-}
-
-async function loadFromStorage(key) {
-  const enc = localStorage.getItem(STORAGE_KEY);
-  if (!enc) return null;
-  try { return await decryptData(key, enc); } catch { return null; }
-}
-
-// ============================================================
-// WEBAUTHN (顔認証 / 指紋認証)
-// ============================================================
-function isWebAuthnAvailable() {
-  return window.location.protocol === 'https:' &&
-         window.PublicKeyCredential !== undefined;
-}
-
-function hasBiometricRegistered() {
-  return !!localStorage.getItem(CRED_KEY);
-}
-
-function updateBiometricUI() {
-  const regSection  = document.getElementById('biometricRegSection');
-  const bioSection  = document.getElementById('biometricSection');
-  const pwSection   = document.getElementById('passwordSection');
-  if (!isWebAuthnAvailable()) {
-    regSection.style.display = 'none';
-    bioSection.style.display = 'none';
-    pwSection.style.display  = 'flex';
-    return;
-  }
-  if (hasBiometricRegistered()) {
-    bioSection.style.display = 'flex';
-    pwSection.style.display  = 'none';
-    regSection.style.display = 'none';
-  } else {
-    bioSection.style.display = 'none';
-    pwSection.style.display  = 'flex';
-    regSection.style.display = 'block';
-  }
-}
-
-function showPasswordSection() {
-  document.getElementById('biometricSection').style.display = 'none';
-  document.getElementById('passwordSection').style.display  = 'flex';
-  setTimeout(() => document.getElementById('masterPwInput')?.focus(), 50);
-}
-
-// Base64url helpers
-function bufToB64url(buf) {
-  return btoa(String.fromCharCode(...new Uint8Array(buf)))
-    .replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
-}
-function b64urlToBuf(b64) {
-  const s = b64.replace(/-/g,'+').replace(/_/g,'/');
-  return Uint8Array.from(atob(s), c => c.charCodeAt(0)).buffer;
-}
-
-async function registerBiometric() {
-  if (!isWebAuthnAvailable()) {
-    showToast('生体認証はHTTPS環境でのみ利用できます');
-    return;
-  }
-  const pw = document.getElementById('masterPwInput').value;
-  if (!pw) {
-    showToast('先にパスワードを入力してください');
-    return;
-  }
-  try {
-    // パスワードを検証してから登録
-    const key = await deriveKey(pw);
-    const saved = await loadFromStorage(key);
-    // 既存データがある場合は検証、なければ新規とみなす
-    if (localStorage.getItem(STORAGE_KEY) && !saved) {
-      document.getElementById('lockError').textContent = 'パスワードが違います';
-      return;
-    }
-
-    const challenge = crypto.getRandomValues(new Uint8Array(32));
-    const userId    = crypto.getRandomValues(new Uint8Array(16));
-    const rpId      = location.hostname || 'localhost';
-
-    const cred = await navigator.credentials.create({
-      publicKey: {
-        challenge,
-        rp: { name: 'PassVault', id: rpId },
-        user: { id: userId, name: 'user', displayName: 'PassVault User' },
-        pubKeyCredParams: [
-          { type:'public-key', alg:-7  },
-          { type:'public-key', alg:-257 }
-        ],
-        authenticatorSelection: {
-          authenticatorAttachment: 'platform',
-          userVerification: 'required',
-          residentKey: 'preferred'
-        },
-        timeout: 60000
+// ===== AUTH =====
+window.onload = () => {
+  switchTab('home');
+  renderQueue();
+  const tryInit = () => {
+    if (window.google && google.accounts && google.accounts.oauth2) {
+      initTokenClient();
+      const saved = localStorage.getItem('yt_token');
+      const expiry = parseInt(localStorage.getItem('yt_token_expiry') || '0');
+      const noExpiry = expiry === 0;
+      if (saved && (noExpiry || Date.now() < expiry)) {
+        accessToken = saved;
+        onLoggedIn();
+      } else {
+        localStorage.removeItem('yt_token');
+        localStorage.removeItem('yt_token_expiry');
+        if (saved) showToast('セッション期限切れです。再ログインしてください');
       }
-    });
-
-    // credentialIdとユーザーパスワードを保存（パスワードは暗号化して保持）
-    const credId = bufToB64url(cred.rawId);
-    localStorage.setItem(CRED_KEY, credId);
-    // パスワードはそのまま保存しないでWebAuthn成功後にアンロックできるようにする
-    // → パスワードをWebAuthn credentialに紐付けて保持するため、
-    //   暗号化されたパスワードヒントをlocalStorageに入れておく
-    const pwKey = await deriveKey('webauthn_' + credId.slice(0,16));
-    const encPw = await encryptData(pwKey, { pw });
-    localStorage.setItem('passvault_webauthn_pw', encPw);
-
-    updateBiometricUI();
-    showToast('生体認証を登録しました！');
-  } catch(e) {
-    if (e.name === 'NotAllowedError') showToast('認証がキャンセルされました');
-    else { console.error(e); showToast('登録に失敗しました: ' + e.message); }
-  }
-}
-
-async function unlockBiometric(auto = false) {
-  const errEl = document.getElementById('biometricError');
-  errEl.textContent = '';
-  if (!isWebAuthnAvailable() || !hasBiometricRegistered()) {
-    if (!auto) showPasswordSection();
-    return;
-  }
-  try {
-    const credId  = localStorage.getItem(CRED_KEY);
-    const rpId    = location.hostname || 'localhost';
-    const challenge = crypto.getRandomValues(new Uint8Array(32));
-
-    const assertion = await navigator.credentials.get({
-      publicKey: {
-        challenge,
-        rpId,
-        allowCredentials: [{ type:'public-key', id: b64urlToBuf(credId) }],
-        userVerification: 'required',
-        timeout: 60000
-      }
-    });
-
-    // 認証成功 → 保存したパスワードを復元
-    const pwKey = await deriveKey('webauthn_' + credId.slice(0,16));
-    const encPw = localStorage.getItem('passvault_webauthn_pw');
-    const { pw } = await decryptData(pwKey, encPw);
-
-    // 通常のアンロック処理
-    masterKey = await deriveKey(pw);
-    currentMasterPassword = pw;
-    const saved = await loadFromStorage(masterKey);
-    db = saved || { categories: getDefaultCategories(), entries: [], trash: [] };
-    if (!saved) await saveToStorage();
-    else ensureDataMigration();
-    showApp();
-    showToast('生体認証でロック解除しました');
-  } catch(e) {
-    if (e.name === 'NotAllowedError') {
-      errEl.textContent = auto ? '' : '認証がキャンセルされました';
     } else {
-      console.error(e);
-      errEl.textContent = '生体認証に失敗しました';
+      setTimeout(tryInit, 300);
     }
-    if (auto) {
-      // 自動試行が失敗/キャンセルされた場合はパスワード入力に切り替え
-      showPasswordSection();
-    }
-  }
-}
-
-// ============================================================
-// LOCK / UNLOCK
-// ============================================================
-function toggleMasterPw() {
-  const inp = document.getElementById('masterPwInput');
-  inp.type = inp.type === 'password' ? 'text' : 'password';
-}
-
-function toggleImport() {
-  document.getElementById('importArea').classList.toggle('show');
-}
-
-function loadFile(input) {
-  const file = input.files[0];
-  if (!file) return;
-  document.getElementById('fileName').textContent = file.name;
-  const reader = new FileReader();
-  reader.onload = e => { importedFileContent = e.target.result; };
-  reader.readAsText(file);
-}
-
-async function unlock() {
-  const pw  = document.getElementById('masterPwInput').value;
-  const err = document.getElementById('lockError');
-  if (!pw) { err.textContent = 'パスワードを入力してください'; return; }
-  err.textContent = '';
-  try {
-    masterKey = await deriveKey(pw);
-    currentMasterPassword = pw;
-    const saved = await loadFromStorage(masterKey);
-    if (saved) {
-      db = saved;
-      ensureDataMigration();
-    } else if (importedFileContent) {
-      db = parseSisPassDB(importedFileContent, pw);
-      await saveToStorage();
-    } else {
-      db = { categories: getDefaultCategories(), entries: [], trash: [] };
-      await saveToStorage();
-    }
-    showApp();
-  } catch(e) {
-    err.textContent = 'パスワードが違います、またはデータが破損しています';
-  }
-}
-
-async function startFresh() {
-  const pw = document.getElementById('masterPwInput').value;
-  if (!pw) { document.getElementById('lockError').textContent = 'パスワードを設定してください'; return; }
-  masterKey = await deriveKey(pw);
-  currentMasterPassword = pw;
-  db = { categories: getDefaultCategories(), entries: [], trash: [] };
-  await saveToStorage();
-  showApp();
-}
-
-function lockApp() {
-  masterKey = null;
-  currentMasterPassword = '';
-  document.getElementById('app').classList.remove('visible');
-  document.getElementById('app').style.display = 'none';
-  document.getElementById('lockScreen').style.display = 'flex';
-  document.getElementById('masterPwInput').value = '';
-  updateBiometricUI();
-  if (hasBiometricRegistered() && isWebAuthnAvailable()) {
-    setTimeout(() => unlockBiometric(true), 300);
-  }
-}
-
-function showApp() {
-  document.getElementById('lockScreen').style.display = 'none';
-  const app = document.getElementById('app');
-  app.classList.add('visible');
-  app.style.display = 'flex';
-  renderAll();
-}
-
-// ============================================================
-// SISPASSMGR IMPORT
-// ============================================================
-function parseSisPassDB(content, password) {
-  const lines = content.split('\n').filter(l => l.trim());
-  let categories = getDefaultCategories();
-  let entries = [];
-  let count = 0;
-  try {
-    for (let i = 1; i < lines.length; i++) {
-      const line = lines[i].trim();
-      if (!line.startsWith('{')) continue;
-      const parsed = JSON.parse(line);
-      const list = parsed.object_list;
-      if (!list) continue;
-      for (const item of list) {
-        if (!Object.values(item).some(v => v === 'Item')) continue;
-        count++;
-        entries.push({
-          id: genId(), title: `インポートアイテム ${count}`, emoji: '🔑',
-          category: categories[0].id, url: '',
-          username: '[復号が必要]', password: '[復号が必要]',
-          memo: 'SisPassMgrから構造インポート（暗号化仕様未解析のため内容は要手入力）',
-          tags: [],
-          createdAt: Date.now(), updatedAt: Date.now()
-        });
-      }
-    }
-    showToast(`${count} 件を検出しました`);
-  } catch(e) { console.error(e); }
-  return { categories, entries, trash: [] };
-}
-
-// ============================================================
-// DATA
-// ============================================================
-function getDefaultCategories() {
-  return [
-    { id:'c1', name:'SNS',        emoji:'💬' },
-    { id:'c2', name:'ショッピング', emoji:'🛒' },
-    { id:'c3', name:'金融',        emoji:'💳' },
-    { id:'c4', name:'ゲーム',      emoji:'🎮' },
-    { id:'c5', name:'メール',      emoji:'📧' },
-    { id:'c7', name:'ネット',      emoji:'🌐' },
-    { id:'c6', name:'その他',      emoji:'📁' },
-  ];
-}
-
-function genId() {
-  return Date.now().toString(36) + Math.random().toString(36).slice(2);
-}
-
-function ensureDataMigration() {
-  if (!db.trash) db.trash = [];
-  if (!db.categories.find(c => c.name === 'ネット')) {
-    db.categories.push({ id:'c7', name:'ネット', emoji:'🌐' });
-  }
-  for (const e of db.entries) {
-    if (!e.tags) e.tags = [];
-  }
-}
-
-// ============================================================
-// RENDER
-// ============================================================
-function renderAll() { renderSidebar(); renderEntries(); }
-
-function renderSidebar() {
-  document.getElementById('count-all').textContent = db.entries.length;
-  document.getElementById('cat-all').className = 'cat-item' + (selectedCategory==='__all__' ? ' active' : '');
-  document.getElementById('count-trash').textContent = db.trash.length;
-  document.getElementById('cat-trash').className = 'cat-item' + (selectedCategory==='__trash__' ? ' active' : '');
-  const list = document.getElementById('categoryList');
-  list.innerHTML = '';
-  for (const cat of db.categories) {
-    const count = db.entries.filter(e => e.category === cat.id).length;
-    const btn = document.createElement('button');
-    btn.className = 'cat-item' + (selectedCategory === cat.id ? ' active' : '');
-    btn.innerHTML = `<div class="cat-icon" style="background:var(--accent-bg)">${cat.emoji}</div>${escHtml(cat.name)}<span class="cat-count">${count}</span>`;
-    btn.onclick = () => selectCategory(cat.id);
-    list.appendChild(btn);
-  }
-  populateCategorySelect();
-}
-
-function renderEntries() {
-  const grid   = document.getElementById('entriesGrid');
-  const search = document.getElementById('searchInput').value.toLowerCase();
-
-  if (selectedCategory === '__trash__') {
-    document.getElementById('btnAdd').style.display = 'none';
-    document.getElementById('catTitle').textContent = '🗑️ ゴミ箱';
-    let items = db.trash;
-    if (search) items = items.filter(e => e.title.toLowerCase().includes(search));
-    document.getElementById('catCount').textContent = `${items.length}件`;
-    if (!items.length) {
-      grid.innerHTML = `<div class="empty-state"><div class="empty-icon">🗑️</div><h3>ゴミ箱は空です</h3><div style="font-size:13px;margin-top:4px">削除したエントリはここに表示されます</div></div>`;
-      return;
-    }
-    grid.innerHTML = '';
-    for (const entry of items) {
-      const card = document.createElement('div');
-      card.className = 'entry-card';
-      card.style.cursor = 'default';
-      const sub = entry.username || entry.url || '—';
-      card.innerHTML = `
-        <div class="entry-icon">${entry.emoji||'🔑'}</div>
-        <div class="entry-info">
-          <div class="entry-title">${escHtml(entry.title)}</div>
-          <div class="entry-sub">${escHtml(sub)}</div>
-        </div>
-        <div class="entry-actions" style="opacity:1">
-          <button class="icon-btn" onclick="restoreEntry('${entry.id}')" title="復元">♻️</button>
-          <button class="icon-btn" onclick="permanentDelete('${entry.id}')" title="完全に削除">🗑️</button>
-        </div>`;
-      grid.appendChild(card);
-    }
-    return;
-  }
-
-  let entries  = db.entries;
-  document.getElementById('btnAdd').style.display = '';
-  if (selectedCategory !== '__all__') {
-    entries = entries.filter(e => e.category === selectedCategory);
-    const cat = db.categories.find(c => c.id === selectedCategory);
-    document.getElementById('catTitle').textContent = cat ? `${cat.emoji} ${cat.name}` : 'カテゴリ';
-  } else {
-    document.getElementById('catTitle').textContent = 'すべて';
-  }
-  if (search) {
-    entries = entries.filter(e =>
-      e.title.toLowerCase().includes(search) ||
-      (e.username||'').toLowerCase().includes(search) ||
-      (e.url||'').toLowerCase().includes(search) ||
-      (e.tags||[]).some(t => t.toLowerCase().includes(search))
-    );
-  }
-  document.getElementById('catCount').textContent = `${entries.length}件`;
-  if (!entries.length) {
-    grid.innerHTML = `<div class="empty-state"><div class="empty-icon">🗝️</div><h3>エントリがありません</h3><div style="font-size:13px;margin-top:4px">「＋ 追加」ボタンで新しいパスワードを登録できます</div></div>`;
-    return;
-  }
-  grid.innerHTML = '';
-  for (const entry of entries) {
-    const card = document.createElement('div');
-    card.className = 'entry-card';
-    card.onclick = () => showDetail(entry.id);
-    const sub = entry.username || entry.url || '—';
-    const tagsHtml = (entry.tags && entry.tags.length)
-      ? `<div class="entry-tags">${entry.tags.map(t=>`<span class="tag-pill">${escHtml(t)}</span>`).join('')}</div>`
-      : '';
-    card.innerHTML = `
-      <div class="entry-icon">${entry.emoji||'🔑'}</div>
-      <div class="entry-info">
-        <div class="entry-title">${escHtml(entry.title)}</div>
-        <div class="entry-sub">${escHtml(sub)}</div>
-        ${tagsHtml}
-      </div>
-      <div class="entry-actions">
-        <button class="icon-btn" onclick="event.stopPropagation();copyPassword('${entry.id}')" title="コピー">📋</button>
-        <button class="icon-btn" onclick="event.stopPropagation();openEntryModal('${entry.id}')" title="編集">✏️</button>
-      </div>`;
-    grid.appendChild(card);
-  }
-}
-
-function selectCategory(id) { selectedCategory = id; renderAll(); }
-
-function populateCategorySelect() {
-  const sel = document.getElementById('e_category');
-  const cur = sel.value;
-  sel.innerHTML = db.categories.map(c => `<option value="${c.id}">${c.emoji} ${escHtml(c.name)}</option>`).join('');
-  if (cur) sel.value = cur;
-}
-
-// ============================================================
-// DETAIL
-// ============================================================
-function showDetail(id) {
-  viewingId = id;
-  const entry = db.entries.find(e => e.id === id);
-  if (!entry) return;
-  document.getElementById('detailIcon').textContent = entry.emoji || '🔑';
-  document.getElementById('detailTitle').textContent = entry.title;
-  const body = document.getElementById('detailBody');
-  body.innerHTML = '';
-  const fields = [
-    { label:'URL',         value: entry.url,      copy:true,  link:true  },
-    { label:'ユーザー名',   value: entry.username, copy:true              },
-    { label:'パスワード',   value: entry.password, copy:true, masked:true },
-  ];
-  if (entry.memo) fields.push({ label:'メモ', value: entry.memo });
-  if (entry.tags && entry.tags.length) fields.push({ label:'タグ', value: entry.tags.join(', '), pills: entry.tags });
-  for (const f of fields) {
-    if (!f.value) continue;
-    const div = document.createElement('div');
-    div.className = 'detail-field';
-    const valHtml = f.masked
-      ? `<div class="detail-field-value masked" id="dv_${f.label}">••••••••</div>`
-      : f.link
-        ? `<div class="detail-field-value"><a href="${escHtml(f.value)}" target="_blank" style="color:var(--accent)">${escHtml(f.value)}</a></div>`
-        : f.pills
-          ? `<div class="detail-field-value" style="white-space:normal">${f.pills.map(t=>`<span class="tag-pill">${escHtml(t)}</span>`).join('')}</div>`
-          : `<div class="detail-field-value">${escHtml(f.value)}</div>`;
-    const safeVal = f.value.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-    const eyeBtn  = f.masked ? `<span style="cursor:pointer;margin-right:4px" onclick="event.stopPropagation();toggleDetailPw('${f.label}','${safeVal}')">👁</span>` : '';
-    const copyBtn = f.copy ? `<button class="copy-btn" onclick="copyField('${safeVal}',this)">${eyeBtn}コピー</button>` : '';
-    div.innerHTML = `<div class="detail-field-inner"><div class="detail-field-label">${f.label}</div>${valHtml}</div>${copyBtn}`;
-    body.appendChild(div);
-  }
-  openModal('detailOverlay');
-}
-
-function toggleDetailPw(label, value) {
-  const el = document.getElementById(`dv_${label}`);
-  if (!el) return;
-  el.textContent = el.textContent === '••••••••' ? value : '••••••••';
-}
-
-function editCurrentEntry() { closeModal('detailOverlay'); openEntryModal(viewingId); }
-
-async function deleteCurrentEntry() {
-  if (!confirm('このエントリをゴミ箱に移動しますか？')) return;
-  const idx = db.entries.findIndex(e => e.id === viewingId);
-  if (idx >= 0) {
-    const [removed] = db.entries.splice(idx, 1);
-    removed.deletedAt = Date.now();
-    db.trash.push(removed);
-  }
-  await saveToStorage();
-  closeModal('detailOverlay');
-  renderAll();
-  showToast('ゴミ箱に移動しました');
-}
-
-async function restoreEntry(id) {
-  const idx = db.trash.findIndex(e => e.id === id);
-  if (idx < 0) return;
-  const [item] = db.trash.splice(idx, 1);
-  delete item.deletedAt;
-  if (!db.categories.find(c => c.id === item.category)) item.category = db.categories[0]?.id;
-  db.entries.push(item);
-  await saveToStorage();
-  renderAll();
-  showToast('復元しました');
-}
-
-async function permanentDelete(id) {
-  if (!confirm('完全に削除しますか？この操作は取り消せません。')) return;
-  db.trash = db.trash.filter(e => e.id !== id);
-  await saveToStorage();
-  renderAll();
-  showToast('完全に削除しました');
-}
-async function copyPassword(id) {
-  const entry = db.entries.find(e => e.id === id);
-  await navigator.clipboard.writeText(entry.password);
-  showToast('パスワードをコピーしました');
-}
-
-async function copyField(value, btn) {
-  await navigator.clipboard.writeText(value);
-  const orig = btn.innerHTML;
-  btn.innerHTML = '✓ コピー済';
-  btn.classList.add('copied');
-  setTimeout(() => { btn.innerHTML = orig; btn.classList.remove('copied'); }, 1500);
-}
-
-// ============================================================
-// ENTRY EDIT
-// ============================================================
-function openEntryModal(id = null) {
-  editingId = id;
-  document.getElementById('editModalTitle').textContent = id ? 'エントリを編集' : '新しいエントリ';
-  const e = id ? db.entries.find(x => x.id === id) : null;
-  document.getElementById('e_title').value    = e?.title    || '';
-  document.getElementById('e_emoji').value    = e?.emoji    || '🔑';
-  document.getElementById('e_url').value      = e?.url      || '';
-  document.getElementById('e_username').value = e?.username || '';
-  document.getElementById('e_password').value = e?.password || '';
-  document.getElementById('e_memo').value     = e?.memo     || '';
-  document.getElementById('e_tags').value     = (e?.tags || []).join(', ');
-  if (e) setTimeout(() => { document.getElementById('e_category').value = e.category || ''; }, 10);
-  updateStrengthBar();
-  openModal('editOverlay');
-}
-
-async function saveEntry() {
-  const title = document.getElementById('e_title').value.trim();
-  if (!title) { showToast('サービス名を入力してください'); return; }
-  const entry = {
-    id: editingId || genId(), title,
-    emoji:    document.getElementById('e_emoji').value    || '🔑',
-    category: document.getElementById('e_category').value,
-    url:      document.getElementById('e_url').value.trim(),
-    username: document.getElementById('e_username').value.trim(),
-    password: document.getElementById('e_password').value,
-    memo:     document.getElementById('e_memo').value.trim(),
-    tags:     document.getElementById('e_tags').value.split(',').map(t=>t.trim()).filter(Boolean),
-    updatedAt: Date.now(),
-    createdAt: editingId ? (db.entries.find(e=>e.id===editingId)?.createdAt || Date.now()) : Date.now()
   };
-  if (editingId) {
-    const idx = db.entries.findIndex(e => e.id === editingId);
-    if (idx >= 0) db.entries[idx] = entry;
-  } else {
-    db.entries.push(entry);
+  setTimeout(tryInit, 300);
+};
+
+function initTokenClient() {
+  tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: CLIENT_ID, scope: SCOPES,
+    callback: (resp) => {
+      if (resp.error) {
+        // サイレント更新失敗時はユーザーに通知
+        if (resp.error !== 'interaction_required') {
+          showToast('ログイン失敗: ' + resp.error);
+        }
+        return;
+      }
+      const isFirstLogin = !accessToken;
+      accessToken = resp.access_token;
+      localStorage.setItem('yt_token', accessToken);
+      localStorage.setItem('yt_token_expiry', Date.now() + 55 * 60 * 1000);
+      if (isFirstLogin) {
+        onLoggedIn();
+      }
+      // 50分後に自動サイレント更新をスケジュール
+      scheduleTokenRefresh();
+    }
+  });
+}
+
+let refreshTimer = null;
+function scheduleTokenRefresh() {
+  if (refreshTimer) clearTimeout(refreshTimer);
+  // 50分後にサイレント更新（prompt不要）
+  refreshTimer = setTimeout(() => {
+    if (accessToken && tokenClient) {
+      tokenClient.requestAccessToken({ prompt: '' });
+    }
+  }, 50 * 60 * 1000);
+}
+function handleLogin() {
+  if (!tokenClient) { showToast('Google SDKを読み込み中…'); return; }
+  tokenClient.requestAccessToken();
+}
+function handleLogout() {
+  if (accessToken) google.accounts.oauth2.revoke(accessToken);
+  accessToken = null; localStorage.removeItem('yt_token'); localStorage.removeItem('yt_token_expiry');
+  subscriptions = []; recentVideos = [];
+  document.getElementById('btn-login').style.display = '';
+  document.getElementById('btn-logout').style.display = 'none';
+  document.getElementById('user-avatar').style.display = 'none';
+  document.getElementById('home-login-gate').style.display = '';
+  document.getElementById('home-content').style.display = 'none';
+  document.getElementById('channels-login-gate').style.display = '';
+  document.getElementById('channels-content').style.display = 'none';
+  showToast('ログアウトしました');
+}
+async function onLoggedIn() {
+  document.getElementById('btn-login').style.display = 'none';
+  document.getElementById('btn-logout').style.display = '';
+  document.getElementById('home-login-gate').style.display = 'none';
+  document.getElementById('home-content').style.display = '';
+  document.getElementById('channels-login-gate').style.display = 'none';
+  document.getElementById('channels-content').style.display = '';
+
+  const recentEl = document.getElementById('recent-videos');
+  recentEl.innerHTML = '<div class="loading"><div class="spinner"></div>チャンネルを取得中…</div>';
+
+  try { await loadSubscriptions(); } catch(e) { }
+  recentEl.innerHTML = `<div class="loading"><div class="spinner"></div>動画を取得中… (${subscriptions.length}ch)</div>`;
+
+  try { await loadRecentVideos(); } catch(e) { }
+}
+
+// ===== API =====
+async function apiGet(endpoint, params = {}) {
+  const url = new URL(API_BASE + endpoint);
+  Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
+  const r = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+  if (!r.ok) {
+    throw new Error(`API Error ${r.status}`);
   }
-  await saveToStorage();
-  closeModal('editOverlay');
-  renderAll();
-  showToast(editingId ? '更新しました' : '追加しました');
+  return r.json();
 }
 
-function toggleFieldPw(id) {
-  const inp = document.getElementById(id);
-  inp.type = inp.type === 'password' ? 'text' : 'password';
+
+
+
+function parseDuration(iso) {
+  if (!iso) return null;
+  const m = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+  if (!m) return null;
+  return (parseInt(m[1]||0)*3600) + (parseInt(m[2]||0)*60) + parseInt(m[3]||0);
 }
 
-document.addEventListener('input', e => { if (e.target.id === 'e_password') updateStrengthBar(); });
+// ページ復帰時にトークン期限チェック
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && accessToken) {
+    const expiry = parseInt(localStorage.getItem('yt_token_expiry') || '0');
+    const remaining = expiry - Date.now();
+    if (remaining < 5 * 60 * 1000) {
+      // 残り5分以下なら即更新
+      if (tokenClient) tokenClient.requestAccessToken({ prompt: '' });
+    }
+  }
+});
 
-function updateStrengthBar() {
-  const pw  = document.getElementById('e_password').value;
-  const bar = document.getElementById('pwStrengthBar');
-  if (!pw) { bar.style.width = '0'; return; }
-  let s = 0;
-  if (pw.length >= 8)  s++;
-  if (pw.length >= 12) s++;
-  if (/[A-Z]/.test(pw)) s++;
-  if (/[a-z]/.test(pw)) s++;
-  if (/[0-9]/.test(pw)) s++;
-  if (/[^A-Za-z0-9]/.test(pw)) s++;
-  bar.style.width  = (s/6*100) + '%';
-  bar.style.background = s<=2 ? '#ef4444' : s<=4 ? '#f59e0b' : '#22c55e';
+// ===== SHORTS FILTER =====
+function isShorts(video) {
+  const title = (video.title || '').toLowerCase();
+  const desc = (video.description || '').toLowerCase();
+  // タイトル・説明文のハッシュタグ
+  if (title.includes('#shorts') || title.includes('#short') || title.includes('#ショート')) return true;
+  if (desc.includes('#shorts') || desc.includes('#short')) return true;
+  // サムネイルURLがShortsのもの（縦長サムネ判定）
+  if (video.thumb && video.thumb.includes('/shorts/')) return true;
+  // durationが設定されていれば60秒以下はショート
+  if (video.duration && video.duration <= 60) return true;
+  return false;
+}
+function filterShorts(videos) {
+  return videos.filter(v => !isShorts(v));
 }
 
-function generateIntoField() {
-  document.getElementById('e_password').value = generatePasswordStr();
-  updateStrengthBar();
-  showToast('パスワードを生成しました');
-}
 
-// ============================================================
-// CATEGORY
-// ============================================================
-function openCatModal() {
-  document.getElementById('newCatName').value  = '';
-  document.getElementById('newCatEmoji').value = '';
-  openModal('catOverlay');
-}
+// ===== OMAKASE =====
+const OMAKASE_KEY = 'mytube_omakase_keywords';
+const DEFAULT_KEYWORDS = [
+  { label: '競馬', emoji: '🐴' },
+  { label: 'パチンコ', emoji: '🎰' },
+  { label: 'ゲーム実況', emoji: '🎮' },
+  { label: '料理', emoji: '🍳' },
+  { label: 'お笑い', emoji: '😂' },
+];
 
-async function addCategory() {
-  const name = document.getElementById('newCatName').value.trim();
-  if (!name) { showToast('カテゴリ名を入力してください'); return; }
-  db.categories.push({ id: genId(), name, emoji: document.getElementById('newCatEmoji').value || '📁' });
-  await saveToStorage();
-  closeModal('catOverlay');
-  renderAll();
-  showToast('カテゴリを追加しました');
-}
-
-// ============================================================
-// GENERATOR
-// ============================================================
-function openGenModal() { generatePassword(); openModal('genOverlay'); }
-
-function toggleGenOpt(key) {
-  genOpts[key] = !genOpts[key];
-  document.getElementById('gt_'+key).className = 'gen-toggle' + (genOpts[key] ? ' active' : '');
-  generatePassword();
-}
-
-function updateGenLen() {
-  document.getElementById('genLenVal').textContent = document.getElementById('genLen').value;
-}
-
-function generatePasswordStr() {
-  let chars = '';
-  if (genOpts.upper) chars += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-  if (genOpts.lower) chars += 'abcdefghijklmnopqrstuvwxyz';
-  if (genOpts.digit) chars += '0123456789';
-  if (genOpts.sym)   chars += '!@#$%^&*()_+-=[]{}|;:,.<>?';
-  if (!chars) chars = 'abcdefghijklmnopqrstuvwxyz';
-  const len = parseInt(document.getElementById('genLen').value) || 16;
-  const arr = new Uint32Array(len);
-  crypto.getRandomValues(arr);
-  return Array.from(arr, n => chars[n % chars.length]).join('');
-}
-
-function generatePassword() {
-  document.getElementById('genResult').value = generatePasswordStr();
-}
-
-async function copyGenResult() {
-  await navigator.clipboard.writeText(document.getElementById('genResult').value);
-  showToast('コピーしました');
-}
-
-// ============================================================
-// IMPORT (PassVault JSON)
-// ============================================================
-function triggerImport() {
-  document.getElementById('importFileInput').click();
-}
-
-async function handleImportFile(input) {
-  const file = input.files[0];
-  if (!file) return;
+function getOmakaseKeywords() {
   try {
-    const text = await file.text();
-    const data = JSON.parse(text);
-    if (!data.entries || !Array.isArray(data.entries)) {
-      showToast('対応していないファイル形式です');
+    const saved = JSON.parse(localStorage.getItem(OMAKASE_KEY) || 'null');
+    return saved || DEFAULT_KEYWORDS;
+  } catch { return DEFAULT_KEYWORDS; }
+}
+function saveOmakaseKeywords(kws) {
+  localStorage.setItem(OMAKASE_KEY, JSON.stringify(kws));
+}
+
+function renderOmakaseKeywords() {
+  const el = document.getElementById('omakase-keywords');
+  if (!el) return;
+  const kws = getOmakaseKeywords();
+  el.innerHTML = '';
+  kws.forEach((kw, i) => {
+    const card = document.createElement('div');
+    card.className = 'omakase-kw-card';
+    card.innerHTML = '<span class="omakase-kw-emoji">' + kw.emoji + '</span>'
+      + '<span class="omakase-kw-label">' + escHtml(kw.label) + '</span>'
+      + '<span class="omakase-kw-del">✕</span>';
+    card.querySelector('.omakase-kw-del').addEventListener('click', (e) => {
+      e.stopPropagation();
+      deleteOmakaseKeyword(i);
+    });
+    card.addEventListener('click', () => playOmakase(kw.label, card));
+    el.appendChild(card);
+  });
+}
+
+function deleteOmakaseKeyword(i) {
+  const kws = getOmakaseKeywords();
+  kws.splice(i, 1);
+  saveOmakaseKeywords(kws);
+  renderOmakaseKeywords();
+}
+
+function addOmakaseKeyword() {
+  const input = document.getElementById('omakase-input');
+  const label = input.value.trim();
+  if (!label) return;
+  const emojis = ['🎯','⭐','🔥','💫','🎪','🎭','🎨','🏆','🎵','🎸','📺','🌟'];
+  const emoji = emojis[Math.floor(Math.random() * emojis.length)];
+  const kws = getOmakaseKeywords();
+  if (kws.find(k => k.label === label)) { showToast('既に追加されています'); return; }
+  kws.push({ label, emoji });
+  saveOmakaseKeywords(kws);
+  input.value = '';
+  renderOmakaseKeywords();
+  showToast(label + ' を追加しました');
+}
+
+async function playOmakase(keyword, card) {
+  if (!accessToken) { showToast('ログインしてください'); return; }
+  card.classList.add('loading');
+  const resultEl = document.getElementById('omakase-result');
+  resultEl.innerHTML = '<div class="loading"><div class="spinner"></div>「' + keyword + '」を検索中…</div>';
+
+  try {
+    const data = await apiGet('/search', {
+      part: 'snippet', q: keyword, type: 'video',
+      maxResults: 25, order: 'relevance',
+      regionCode: 'JP'
+    });
+    const items = (data.items || []).filter(i => i.id && i.id.videoId);
+    const videos = filterShorts(items.map(item => ({
+      id: item.id.videoId,
+      title: item.snippet.title,
+      description: item.snippet.description || '',
+      channel: item.snippet.channelTitle,
+      thumb: (item.snippet.thumbnails && item.snippet.thumbnails.medium)
+        ? item.snippet.thumbnails.medium.url : '',
+      date: item.snippet.publishedAt
+    })));
+    if (!videos.length) {
+      resultEl.innerHTML = '<div class="empty">動画が見つかりませんでした</div>';
+      card.classList.remove('loading');
       return;
     }
-    const mode = confirm('「OK」で既存データに追加（マージ）、「キャンセル」で全て置き換えます。\nよろしいですか？');
-    if (mode) {
-      // マージ: カテゴリは名前で重複排除、エントリは新規IDで追加
-      const nameToId = {};
-      for (const c of db.categories) nameToId[c.name] = c.id;
-      for (const c of (data.categories || [])) {
-        if (!nameToId[c.name]) {
-          const newId = genId();
-          nameToId[c.name] = newId;
-          db.categories.push({ id: newId, name: c.name, emoji: c.emoji || '📁' });
-        }
-      }
-      for (const e of data.entries) {
-        const oldCat = (data.categories || []).find(c => c.id === e.category);
-        const newCatId = oldCat ? nameToId[oldCat.name] : (db.categories[0]?.id);
-        db.entries.push({ ...e, id: genId(), category: newCatId, tags: e.tags || [] });
-      }
-      if (data.trash) {
-        for (const e of data.trash) {
-          db.trash.push({ ...e, id: genId(), tags: e.tags || [] });
-        }
-      }
-    } else {
-      // 置き換え
-      db = {
-        categories: (data.categories && data.categories.length) ? data.categories : getDefaultCategories(),
-        entries: (data.entries || []).map(e => ({ ...e, tags: e.tags || [] })),
-        trash: (data.trash || []).map(e => ({ ...e, tags: e.tags || [] }))
-      };
-    }
-    ensureDataMigration();
-    await saveToStorage();
-    renderAll();
-    showToast('インポートしました');
+    const pick = videos[Math.floor(Math.random() * Math.min(10, videos.length))];
+    resultEl.innerHTML = '<div class="video-list">' + videos.slice(0, 10).map(v => listCardHTML(v)).join('') + '</div>';
+    playVideo(pick.id, pick.title, pick.channel);
   } catch(e) {
-    console.error(e);
-    showToast('インポートに失敗しました: ファイルを確認してください');
-  } finally {
-    input.value = '';
+    resultEl.innerHTML = '<div class="empty">エラー: ' + e.message + '</div>';
+    showToast('エラー: ' + e.message);
+  }
+  card.classList.remove('loading');
+}
+
+
+// ===== KEIBA =====
+const KEIBA_CHANNELS = {
+  jra: [
+    { id: 'UCj6AKkCWS6FJqf0o5wP45eQ', name: 'JRA公式' },
+    { id: 'UCgFx6fLyvNHQ7M-sKO5gTXg', name: 'JRA-VAN' },
+    { id: 'UC2kAqmeScpm7k3Fp-llDUIg', name: 'テレ東競馬' },
+    { id: 'UCJw-lp-C-Rhwe4WOTZkOxaw', name: 'カンテレ競馬' },
+  ],
+  local: [
+    { id: 'UCjkOgWcS0111xXkAqyhR5Vw', name: 'NAR地方競馬' },
+  ],
+  youtuber: [
+    { id: 'UCO04YSH-5JiCfkT0MBw2jWQ', name: 'JRAに俺は勝つ。' },
+    { id: 'UCfCF0xys4sFKkUlRmjWD1Dw', name: '競馬予想TV' },
+    { id: 'UCPLTernUVcoJl7BvAbckwzg', name: 'ウマニティ' },
+    { id: 'UCztTkAXjEXeQ5yGRn6mKOCQ', name: '競馬全レース予想TV' },
+  ],
+  overseas: [
+    { id: 'UCiMDOqMCHFzeGBbKA69KLYA', name: 'TVG Network' },
+    { id: 'UCqFIu4QKZEBhTzCXGnFBPaQ', name: 'Racing TV' },
+  ]
+};
+
+let keibaAllVideos = [];
+let keibaCurrentCat = 'all';
+let keibaLoaded = false;
+
+async function loadKeiba() {
+  if (!accessToken) { showToast('ログインが必要です'); return; }
+  const el = document.getElementById('keiba-videos');
+  el.innerHTML = '<div class="loading"><div class="spinner"></div>競馬動画を取得中…</div>';
+  keibaLoaded = true;
+  keibaAllVideos = [];
+
+  // 全チャンネルから並列取得
+  const allChannels = [
+    ...KEIBA_CHANNELS.jra.map(c => ({...c, cat: 'jra'})),
+    ...KEIBA_CHANNELS.local.map(c => ({...c, cat: 'local'})),
+    ...KEIBA_CHANNELS.youtuber.map(c => ({...c, cat: 'youtuber'})),
+    ...KEIBA_CHANNELS.overseas.map(c => ({...c, cat: 'overseas'})),
+  ];
+
+  const BATCH = 5;
+  for (let i = 0; i < allChannels.length; i += BATCH) {
+    const batch = allChannels.slice(i, i + BATCH);
+    await Promise.all(batch.map(async (ch) => {
+      try {
+        const data = await apiGet('/activities', {
+          part: 'snippet,contentDetails',
+          channelId: ch.id,
+          maxResults: 5
+        });
+        (data.items || []).forEach(item => {
+          const upload = item.contentDetails && item.contentDetails.upload;
+          if (upload && upload.videoId) {
+            keibaAllVideos.push({
+              id: upload.videoId,
+              title: item.snippet.title,
+              description: item.snippet.description || '',
+              channel: item.snippet.channelTitle || ch.name,
+              thumb: item.snippet.thumbnails && item.snippet.thumbnails.medium
+                ? item.snippet.thumbnails.medium.url
+                : (item.snippet.thumbnails && item.snippet.thumbnails.default
+                  ? item.snippet.thumbnails.default.url : ''),
+              date: item.snippet.publishedAt,
+              cat: ch.cat
+            });
+          }
+        });
+      } catch {}
+    }));
+  }
+
+  // 日付順にソート
+  keibaAllVideos.sort((a, b) => new Date(b.date) - new Date(a.date));
+  renderKeibaVideos();
+}
+
+function filterKeiba(cat, btn) {
+  keibaCurrentCat = cat;
+  document.querySelectorAll('.keiba-cat-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderKeibaVideos();
+}
+
+function renderKeibaVideos() {
+  const el = document.getElementById('keiba-videos');
+  const videos = keibaCurrentCat === 'all'
+    ? keibaAllVideos
+    : keibaAllVideos.filter(v => v.cat === keibaCurrentCat);
+  const filtered = filterShorts(videos);
+  if (!filtered.length) {
+    el.innerHTML = '<div class="empty">動画がありません</div>';
+    return;
+  }
+  el.innerHTML = '<div class="video-grid">' + filtered.map(v => gridCardHTML(v, false)).join('') + '</div>';
+}
+
+// ===== FOR YOU =====
+const YT_CATEGORIES = {
+  '1': 'フィルム・アニメ', '2': '自動車・乗り物', '10': '音楽',
+  '15': 'ペット・動物', '17': 'スポーツ', '19': '旅行・イベント',
+  '20': 'ゲーム', '22': '人物・ブログ', '23': 'コメディ',
+  '24': 'エンタメ', '25': 'ニュース・政治', '26': 'ハウツー・スタイル',
+  '27': '教育', '28': '科学・技術', '29': '非営利・社会活動'
+};
+
+let forYouLoaded = false;
+
+async function loadForYou() {
+  if (!accessToken) { showToast('ログインが必要です'); return; }
+  const el = document.getElementById('foryou-videos');
+  const titleEl = document.getElementById('foryou-title');
+  el.innerHTML = '<div class="loading"><div class="spinner"></div>視聴履歴を分析中…</div>';
+  forYouLoaded = true;
+
+  // 視聴履歴からカテゴリIDを集計
+  const history = getHistory();
+  if (history.length === 0) {
+    el.innerHTML = '<div class="empty">視聴履歴がありません<br>動画を見るとあなた向けのランキングが表示されます</div>';
+    return;
+  }
+
+  // 動画IDからカテゴリを取得（最大20件）
+  const sample = history.slice(0, 20).map(v => v.id).join(',');
+  const catCount = {};
+  try {
+    const data = await apiGet('/videos', { part: 'snippet', id: sample });
+    (data.items || []).forEach(item => {
+      const cat = item.snippet.categoryId;
+      catCount[cat] = (catCount[cat] || 0) + 1;
+    });
+  } catch(e) {
+    el.innerHTML = '<div class="empty">分析失敗: ' + e.message + '</div>';
+    return;
+  }
+
+  if (!Object.keys(catCount).length) {
+    el.innerHTML = '<div class="empty">カテゴリを分析できませんでした</div>';
+    return;
+  }
+
+  // 最多カテゴリを選択
+  const topCatId = Object.entries(catCount).sort((a,b) => b[1]-a[1])[0][0];
+  const catName = YT_CATEGORIES[topCatId] || 'カテゴリ' + topCatId;
+  titleEl.textContent = '🎯 ' + catName + ' のトレンド';
+
+  el.innerHTML = '<div class="foryou-category">あなたがよく見るカテゴリ: <span class="foryou-cat-badge">' + catName + '</span></div>'
+    + '<div class="loading"><div class="spinner"></div>ランキングを取得中…</div>';
+
+  try {
+    const allVideos = [];
+    const d1 = await apiGet('/videos', {
+      part: 'snippet', chart: 'mostPopular',
+      regionCode: 'JP', videoCategoryId: topCatId, maxResults: 50
+    });
+    (d1.items || []).forEach(item => allVideos.push(item));
+    if (d1.nextPageToken) {
+      const d2 = await apiGet('/videos', {
+        part: 'snippet', chart: 'mostPopular',
+        regionCode: 'JP', videoCategoryId: topCatId,
+        maxResults: 50, pageToken: d1.nextPageToken
+      });
+      (d2.items || []).forEach(item => allVideos.push(item));
+    }
+    const videos = allVideos.map((item, i) => ({
+      id: item.id, title: item.snippet.title,
+      description: item.snippet.description || '',
+      channel: item.snippet.channelTitle,
+      thumb: item.snippet.thumbnails?.medium?.url || item.snippet.thumbnails?.default?.url || '',
+      date: item.snippet.publishedAt,
+      duration: parseDuration(item.contentDetails && item.contentDetails.duration),
+      rank: i + 1
+    }));
+    if (!videos.length) {
+      el.innerHTML = '<div class="empty">このカテゴリのトレンドが見つかりませんでした</div>';
+      return;
+    }
+    el.innerHTML = '<div class="foryou-category">あなたがよく見るカテゴリ: <span class="foryou-cat-badge">' + catName + '</span></div>'
+      + '<div class="video-grid">' + filterShorts(videos).map(v => gridCardHTML(v, true)).join('') + '</div>';
+  } catch(e) {
+    el.innerHTML = '<div class="empty">取得失敗: ' + e.message + '</div>';
+    forYouLoaded = false;
   }
 }
 
-// ============================================================
-// EXPORT
-// ============================================================
-function exportData() {
-  const blob = new Blob([JSON.stringify(db, null, 2)], { type:'application/json' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href = url; a.download = `passvault_${new Date().toISOString().slice(0,10)}.json`;
-  a.click(); URL.revokeObjectURL(url);
-  showToast('エクスポートしました（非暗号化）');
-}
+// ===== TREND =====
+let trendLoaded = false;
 
-// ============================================================
-// UPDATE / RELOAD
-// ============================================================
-async function hardReload() {
+async function loadTrend() {
+  if (!accessToken) { showToast('ログインが必要です'); return; }
+  const el = document.getElementById('trend-videos');
+  el.innerHTML = '<div class="loading"><div class="spinner"></div>Top100を取得中…</div>';
+  trendLoaded = true;
   try {
-    if ('caches' in window) {
-      const keys = await caches.keys();
-      await Promise.all(keys.map(k => caches.delete(k)));
+    const allVideos = [];
+    const d1 = await apiGet('/videos', { part: 'snippet,contentDetails', chart: 'mostPopular', regionCode: 'JP', maxResults: 50 });
+    (d1.items || []).forEach(item => allVideos.push(item));
+    if (d1.nextPageToken) {
+      const d2 = await apiGet('/videos', { part: 'snippet,contentDetails', chart: 'mostPopular', regionCode: 'JP', maxResults: 50, pageToken: d1.nextPageToken });
+      (d2.items || []).forEach(item => allVideos.push(item));
     }
-    if ('serviceWorker' in navigator) {
-      const regs = await navigator.serviceWorker.getRegistrations();
-      await Promise.all(regs.map(r => r.unregister()));
-    }
-  } catch(e) { console.error(e); }
-  // キャッシュバスター付きで強制再読み込み
-  const url = new URL(location.href);
-  url.searchParams.set('_r', Date.now());
-  location.href = url.toString();
+    const videos = allVideos.map((item, i) => ({
+      id: item.id, title: item.snippet.title,
+      description: item.snippet.description || '',
+      channel: item.snippet.channelTitle,
+      thumb: item.snippet.thumbnails?.medium?.url || item.snippet.thumbnails?.default?.url || '',
+      date: item.snippet.publishedAt,
+      duration: parseDuration(item.contentDetails && item.contentDetails.duration),
+      rank: i + 1
+    }));
+    const filteredT = filterShorts(videos);
+    el.innerHTML = '<div class="video-grid">' + filteredT.map(v => gridCardHTML(v, true)).join('') + '</div>';
+  } catch (e) {
+    trendLoaded = false;
+    el.innerHTML = `<div class="empty">取得失敗: ${e.message}</div>`;
+  }
 }
 
-// ============================================================
-// MODAL / TOAST / UTILS
-// ============================================================
-function openModal(id)  { document.getElementById(id).classList.add('show'); }
-function closeModal(id) { document.getElementById(id).classList.remove('show'); }
-function closeOnBg(el, id) { if (el.id === id) closeModal(id); }
+// ===== SEARCH =====
+// ===== SEARCH HISTORY =====
+const SEARCH_HISTORY_KEY = 'mytube_search_history';
+
+function getSearchHistory() {
+  try { return JSON.parse(localStorage.getItem(SEARCH_HISTORY_KEY) || '{}'); } catch { return {}; }
+}
+function saveSearchKeyword(q) {
+  const h = getSearchHistory();
+  h[q] = (h[q] || 0) + 1;
+  localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(h));
+  renderSearchHistory();
+}
+function clearSearchHistory() {
+  localStorage.removeItem(SEARCH_HISTORY_KEY);
+  renderSearchHistory();
+  showToast('検索履歴を削除しました');
+}
+function deleteSearchKeyword(q) {
+  const h = getSearchHistory();
+  delete h[q];
+  localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(h));
+  renderSearchHistory();
+}
+function renderSearchHistory() {
+  const el = document.getElementById('search-history-list');
+  if (!el) return;
+  const h = getSearchHistory();
+  const sorted = Object.entries(h).sort((a, b) => b[1] - a[1]).slice(0, 20);
+  if (!sorted.length) {
+    el.innerHTML = '<div style="padding:8px 0 16px;font-size:12px;color:var(--text3)">まだ検索履歴がありません</div>';
+    return;
+  }
+  const wrap = document.createElement('div');
+  wrap.className = 'search-kw-list';
+  sorted.forEach(([kw, cnt]) => {
+    const span = document.createElement('span');
+    span.className = 'search-kw-tag';
+    const kwText = document.createTextNode(kw);
+    const cntBadge = document.createElement('span');
+    cntBadge.className = 'search-kw-count';
+    cntBadge.textContent = cnt;
+    const delBtn = document.createElement('span');
+    delBtn.className = 'search-kw-del';
+    delBtn.textContent = '✕';
+    delBtn.addEventListener('click', (e) => { e.stopPropagation(); deleteSearchKeyword(kw); });
+    span.appendChild(kwText);
+    span.appendChild(cntBadge);
+    span.appendChild(delBtn);
+    span.addEventListener('click', () => searchFromHistory(kw));
+    wrap.appendChild(span);
+  });
+  el.innerHTML = '';
+  el.appendChild(wrap);
+}
+function searchFromHistory(kw) {
+  document.getElementById('search-input').value = kw;
+  doSearch();
+}
+
+async function doSearch() {
+  const q = document.getElementById('search-input').value.trim();
+  if (!q) { renderSearchHistory(); return; }
+  if (!accessToken) { showToast('ログインしてください'); return; }
+  // 履歴セクションを隠す
+  const histSec = document.getElementById('search-history-section');
+  if (histSec) histSec.style.display = 'none';
+  const el = document.getElementById('search-results');
+  el.innerHTML = '<div class="loading"><div class="spinner"></div>検索中…</div>';
+  saveSearchKeyword(q);
+  try {
+    const data = await apiGet('/search', { part: 'snippet', q, type: 'video', maxResults: 20, order: 'relevance' });
+    const videos = (data.items || []).map(item => ({
+      id: item.id.videoId, title: item.snippet.title,
+      channel: item.snippet.channelTitle,
+      thumb: item.snippet.thumbnails?.medium?.url || '',
+      date: item.snippet.publishedAt
+    }));
+    if (!videos.length) { el.innerHTML = '<div class="empty">結果が見つかりませんでした</div>'; return; }
+    const filteredS = filterShorts(videos);
+    if (!filteredS.length) { el.innerHTML = '<div class="empty">結果が見つかりませんでした</div>'; return; }
+    el.innerHTML = '<div class="video-list">' + filteredS.map(v => listCardHTML(v)).join('') + '</div>';
+  } catch (e) { el.innerHTML = '<div class="empty">検索失敗: ' + e.message + '</div>'; }
+}
+
+// ===== SUBSCRIPTIONS =====
+async function loadSubscriptions() {
+  subscriptions = [];
+  let pageToken = '';
+  try {
+    while (true) {
+      const params = { part: 'snippet', mine: true, maxResults: 50, order: 'alphabetical' };
+      if (pageToken) params.pageToken = pageToken;
+      const data = await apiGet('/subscriptions', params);
+      const items = (data.items || []).map(i => ({
+        id: i.snippet.resourceId.channelId,
+        name: i.snippet.title,
+        thumb: i.snippet.thumbnails?.default?.url || ''
+      }));
+      subscriptions = [...subscriptions, ...items];
+      if (data.nextPageToken) pageToken = data.nextPageToken;
+      else break;
+    }
+  } catch (e) {
+    showToast('チャンネル取得失敗: ' + e.message);
+  }
+  // renderはtryの外で
+  try {
+    renderChannels();
+  } catch(e) {
+  }
+}
+
+async function loadRecentVideos() {
+  if (!accessToken) return;
+  const el = document.getElementById('recent-videos');
+  document.getElementById('home-section-title').textContent = 'ホーム';
+  el.innerHTML = '<div class="loading"><div class="spinner"></div>動画を取得中…</div>';
+
+  try {
+    if (!subscriptions.length) {
+      el.innerHTML = '<div class="empty">チャンネルが見つかりませんでした</div>';
+      return;
+    }
+
+    const allVideos = [];
+
+    // ===== ① 登録チャンネルの最新動画 =====
+    const BATCH = 5;
+    const sample = shuffle([...subscriptions]);
+    for (let i = 0; i < sample.length; i += BATCH) {
+      const batch = sample.slice(i, i + BATCH);
+      await Promise.all(batch.map(async (ch) => {
+        try {
+          const data = await apiGet('/activities', {
+            part: 'snippet,contentDetails', channelId: ch.id, maxResults: 5
+          });
+          (data.items || []).forEach(item => {
+            const upload = item.contentDetails && item.contentDetails.upload;
+            if (upload && upload.videoId) {
+              allVideos.push({
+                id: upload.videoId,
+                title: item.snippet.title,
+                description: item.snippet.description || '',
+                channel: item.snippet.channelTitle,
+                thumb: item.snippet.thumbnails && item.snippet.thumbnails.medium
+                  ? item.snippet.thumbnails.medium.url
+                  : (item.snippet.thumbnails && item.snippet.thumbnails.default
+                    ? item.snippet.thumbnails.default.url : ''),
+                date: item.snippet.publishedAt,
+                source: 'sub'
+              });
+            }
+          });
+        } catch(e) {}
+      }));
+    }
+
+    // ===== ② 視聴履歴からカテゴリ分析してトレンド動画を追加 =====
+    try {
+      const history = getHistory();
+      if (history.length >= 3) {
+        const histIds = history.slice(0, 15).map(v => v.id).join(',');
+        const catData = await apiGet('/videos', { part: 'snippet', id: histIds });
+        const catCount = {};
+        (catData.items || []).forEach(item => {
+          const cat = item.snippet.categoryId;
+          catCount[cat] = (catCount[cat] || 0) + 1;
+        });
+        // 上位2カテゴリのトレンドを取得
+        const topCats = Object.entries(catCount).sort((a,b) => b[1]-a[1]).slice(0, 3);
+        for (const [catId] of topCats) {
+          try {
+            const tdata = await apiGet('/videos', {
+              part: 'snippet,contentDetails', chart: 'mostPopular',
+              regionCode: 'JP', videoCategoryId: catId, maxResults: 50
+            });
+            (tdata.items || []).forEach(item => {
+              allVideos.push({
+                id: item.id,
+                title: item.snippet.title,
+                description: item.snippet.description || '',
+                channel: item.snippet.channelTitle,
+                thumb: item.snippet.thumbnails && item.snippet.thumbnails.medium
+                  ? item.snippet.thumbnails.medium.url
+                  : (item.snippet.thumbnails && item.snippet.thumbnails.default
+                    ? item.snippet.thumbnails.default.url : ''),
+                date: item.snippet.publishedAt,
+                duration: parseDuration(item.contentDetails && item.contentDetails.duration),
+                source: 'trend',
+                catId: catId
+              });
+            });
+          } catch(e) {}
+        }
+      }
+    } catch(e) {}
+
+    // 重複除去・ショートフィルター・シャッフル（登録チャンネル優先）
+    const seen = new Set();
+    const subVideos = filterShorts(allVideos.filter(v => v.source === 'sub'));
+    const trendVideosHome = filterShorts(allVideos.filter(v => v.source === 'trend'));
+    // 登録チャンネルを先に、その後トレンドを混ぜる
+    const merged = [];
+    subVideos.forEach(v => { if (!seen.has(v.id)) { seen.add(v.id); merged.push(v); } });
+    // トレンドはランダムに間に挿入
+    const shuffledTrend = shuffle(trendVideosHome);
+    shuffledTrend.forEach(v => { if (!seen.has(v.id)) { seen.add(v.id); merged.push(v); } });
+
+    recentVideos = merged;
+
+    if (!recentVideos.length) {
+      el.innerHTML = '<div class="empty">動画を取得できませんでした<br>更新ボタンをお試しください</div>';
+    } else {
+      // セクション分けして表示
+      const subList = recentVideos.filter(v => v.source === 'sub');
+      const trendList = recentVideos.filter(v => v.source === 'trend');
+      let html2 = '';
+      if (subList.length) {
+        html2 += '<div style="padding:12px 16px 4px"><span style="font-family:Space Grotesk,sans-serif;font-size:13px;font-weight:700;color:var(--text2)">📡 登録チャンネル</span></div>';
+        html2 += '<div class="video-grid">' + subList.map(v => gridCardHTML(v, false)).join('') + '</div>';
+      }
+      if (trendList.length) {
+        const catNames = [...new Set(trendList.map(v => YT_CATEGORIES[v.catId] || ''))].filter(Boolean).join('・');
+        html2 += '<div style="padding:16px 16px 4px"><span style="font-family:Space Grotesk,sans-serif;font-size:13px;font-weight:700;color:var(--text2)">🎯 あなたへのおすすめ（' + catNames + '）</span></div>';
+        html2 += '<div class="video-grid">' + trendList.map(v => gridCardHTML(v, false)).join('') + '</div>';
+      }
+      el.innerHTML = html2;
+    }
+  } catch (e) {
+    el.innerHTML = '<div class="empty">取得失敗: ' + e.message + '</div>';
+  }
+}
+
+async function loadChannelVideos(chId, chName) {
+  switchTab('home');
+  const el = document.getElementById('recent-videos');
+  el.innerHTML = `<div class="loading"><div class="spinner"></div>${chName} の動画を取得中…</div>`;
+  document.getElementById('home-section-title').textContent = chName;
+  try {
+    const data = await apiGet('/activities', { part: 'snippet,contentDetails', channelId: chId, maxResults: 20 });
+    const videos = (data.items || []).filter(i => i.contentDetails && i.contentDetails.upload).map(item => ({
+      id: item.contentDetails.upload.videoId,
+      title: item.snippet.title,
+      channel: item.snippet.channelTitle,
+      thumb: item.snippet.thumbnails?.medium?.url || item.snippet.thumbnails?.default?.url || '',
+      date: item.snippet.publishedAt
+    }));
+    const filtered = filterShorts(videos);
+    if (!filtered.length) { el.innerHTML = '<div class="empty">動画が見つかりませんでした</div>'; return; }
+    el.innerHTML = '<div class="video-grid">' + filtered.map(v => gridCardHTML(v, false)).join('') + '</div>';
+  } catch (e) { el.innerHTML = '<div class="empty">取得失敗: ' + e.message + '</div>'; }
+}
+
+async function loadRelatedVideos(videoId) {
+  const sec = document.getElementById('related-section');
+  const el = document.getElementById('related-list');
+  sec.style.display = '';
+  el.innerHTML = '<div class="loading"><div class="spinner"></div>関連動画を取得中…</div>';
+  try {
+    const data = await apiGet('/search', { part: 'snippet', relatedToVideoId: videoId, type: 'video', maxResults: 15 });
+    const videos = (data.items || []).filter(i => i.id.videoId).map(item => ({
+      id: item.id.videoId, title: item.snippet.title,
+      channel: item.snippet.channelTitle,
+      thumb: item.snippet.thumbnails?.medium?.url || '',
+      date: item.snippet.publishedAt
+    }));
+    if (!videos.length) { sec.style.display = 'none'; return; }
+    el.innerHTML = videos.map(v => listCardHTML(v)).join('');
+  } catch { sec.style.display = 'none'; }
+}
+
+// ===== CARD HTML =====
+function gridCardHTML(v, showRank) {
+  const safeTitle = escAttr(v.title);
+  const safeCh = escAttr(v.channel);
+  const rankBadge = showRank && v.rank ? `<div class="rank-badge ${v.rank <= 3 ? 'rank-'+v.rank : 'rank-n'}">${v.rank <= 3 ? ['🥇','🥈','🥉'][v.rank-1] : v.rank}</div>` : '';
+  return `
+    <div class="video-card" id="gc-${v.id}" data-id="${v.id}" data-title="${safeTitle}" data-ch="${safeCh}" onclick="handleCardTap(this)">
+      <div class="thumb-wrap">
+        ${v.thumb ? `<img src="${v.thumb}" alt="" loading="lazy">` : `<div class="thumb-ph">▶</div>`}
+        ${rankBadge}
+      </div>
+      <div class="card-body">
+        <div class="card-title">${escHtml(v.title)}</div>
+        <div class="card-channel">${escHtml(v.channel)}</div>
+        <div class="card-date">${formatDate(v.date)}</div>
+      </div>
+    </div>`;
+}
+
+function listCardHTML(v) {
+  const safeTitle = escAttr(v.title);
+  const safeCh = escAttr(v.channel);
+  return `
+    <div class="video-list-card" id="lc-${v.id}" data-id="${v.id}" data-title="${safeTitle}" data-ch="${safeCh}" onclick="handleCardTap(this)">
+      <div class="list-thumb-wrap">
+        ${v.thumb ? `<img src="${v.thumb}" alt="" loading="lazy">` : `<div class="thumb-ph" style="font-size:18px">▶</div>`}
+      </div>
+      <div class="list-meta">
+        <div class="list-title">${escHtml(v.title)}</div>
+        <div class="list-channel">${escHtml(v.channel)}</div>
+        <div class="list-date">${formatDate(v.date)}</div>
+      </div>
+    </div>`;
+}
+
+// ===== TAP: preview → play =====
+function handleCardTap(card) {
+  const id = card.dataset.id;
+  const title = card.dataset.title;
+  const ch = card.dataset.ch;
+  playVideo(id, title, ch);
+}
+
+function stopPreview() {
+  previewingId = null;
+}
+
+// ===== RENDER =====
+function chItemHTML(ch) {
+  var d = document.createElement('div');
+  d.className = 'channel-item';
+  d.setAttribute('onclick', 'loadChannelVideos("' + ch.id + '","' + escAttr(ch.name) + '")');
+  var icon = document.createElement('div');
+  icon.className = 'ch-icon';
+  if (ch.thumb) {
+    var img = document.createElement('img');
+    img.src = ch.thumb; img.alt = '';
+    img.onerror = function() { this.parentNode.textContent = '📺'; };
+    icon.appendChild(img);
+  } else {
+    icon.textContent = '📺';
+  }
+  var info = document.createElement('div');
+  info.className = 'ch-info';
+  var name = document.createElement('div');
+  name.className = 'ch-name';
+  name.textContent = ch.name;
+  info.appendChild(name);
+  var ytLink = document.createElement('a');
+  ytLink.className = 'btn-yt';
+  ytLink.href = 'https://www.youtube.com/channel/' + ch.id;
+  ytLink.target = '_blank';
+  ytLink.textContent = '▶ YT';
+  ytLink.setAttribute('onclick', 'event.stopPropagation()');
+  d.appendChild(icon); d.appendChild(info); d.appendChild(ytLink);
+  return d;
+}
+
+function renderChannels() {
+  const el = document.getElementById('channel-list');
+  el.innerHTML = '';
+  if (!subscriptions.length) { el.innerHTML = '<div class="empty">チャンネルが見つかりません</div>'; return; }
+  subscriptions.forEach(function(ch) { el.appendChild(chItemHTML(ch)); });
+}
+
+function renderQueue() {
+  const el = document.getElementById('queue-list');
+  if (!queue.length) { el.innerHTML = '<div class="empty">キューが空です<br>URLを入力して動画を追加してください</div>'; return; }
+  el.innerHTML = queue.map((v, i) => `
+    <div class="queue-item ${i === currentVidIndex ? 'playing' : ''}" onclick="playQueueItem(${i})">
+      <div class="q-thumb">${v.thumb ? `<img src="${v.thumb}" alt="">` : ''}</div>
+      <div class="q-info">
+        <div class="q-title">${escHtml(v.title)}</div>
+        <div class="q-id">${v.id}</div>
+      </div>
+      <button class="q-del" onclick="event.stopPropagation();removeFromQueue(${i})">✕</button>
+    </div>`).join('');
+}
+
+// ===== PLAYER =====
+// ===== HISTORY =====
+const HISTORY_KEY = 'mytube_history';
+const RESUME_KEY = 'mytube_resume';
+const MAX_HISTORY = 100;
+
+function getHistory() {
+  try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); } catch { return []; }
+}
+function saveHistory(id, title, channel, thumb) {
+  let h = getHistory().filter(v => v.id !== id); // remove duplicate
+  h.unshift({ id, title, channel, thumb, watchedAt: Date.now() });
+  if (h.length > MAX_HISTORY) h = h.slice(0, MAX_HISTORY);
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(h));
+  if (currentTab === 'history') renderHistory();
+}
+function clearHistory() {
+  localStorage.removeItem(HISTORY_KEY);
+  renderHistory();
+  showToast('履歴を削除しました');
+}
+function removeHistoryItem(id) {
+  const h = getHistory().filter(v => v.id !== id);
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(h));
+  renderHistory();
+}
+function renderHistory() {
+  const el = document.getElementById('history-list');
+  const h = getHistory();
+  if (!h.length) { el.innerHTML = '<div class="empty">視聴履歴がありません</div>'; return; }
+  el.innerHTML = h.map(v => {
+    const resume = getResume(v.id);
+    const resumeStr = resume > 5 ? `<span class="resume-badge">▶ ${formatSeconds(resume)}から</span>` : '';
+    return `
+    <div class="video-list-card" data-id="${v.id}" data-title="${escAttr(v.title)}" data-ch="${escAttr(v.channel)}" onclick="handleCardTap(this)">
+      <div class="list-thumb-wrap" style="position:relative">
+        ${v.thumb ? `<img src="${v.thumb}" alt="" loading="lazy">` : '<div class="thumb-ph" style="font-size:18px">▶</div>'}
+        ${resumeStr}
+      </div>
+      <div class="list-meta">
+        <div class="list-title">${escHtml(v.title)}</div>
+        <div class="list-channel">${escHtml(v.channel || '')}</div>
+        <div class="list-date">${formatAgo(v.watchedAt)}</div>
+      </div>
+      <button class="q-del" onclick="event.stopPropagation();removeHistoryItem('${v.id}')">✕</button>
+    </div>`;
+  }).join('');
+}
+
+// ===== RESUME =====
+function getResume(id) {
+  try {
+    const d = JSON.parse(localStorage.getItem(RESUME_KEY) || '{}');
+    return d[id] || 0;
+  } catch { return 0; }
+}
+function saveResume(id, seconds) {
+  try {
+    const d = JSON.parse(localStorage.getItem(RESUME_KEY) || '{}');
+    d[id] = Math.floor(seconds);
+    // keep max 200 entries
+    const keys = Object.keys(d);
+    if (keys.length > 200) delete d[keys[0]];
+    localStorage.setItem(RESUME_KEY, JSON.stringify(d));
+  } catch {}
+}
+function formatSeconds(s) {
+  s = Math.floor(s);
+  const m = Math.floor(s / 60), sec = s % 60;
+  return `${m}:${String(sec).padStart(2,'0')}`;
+}
+function formatAgo(ts) {
+  const diff = Date.now() - ts;
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return 'たった今';
+  if (m < 60) return `${m}分前`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}時間前`;
+  const d = Math.floor(h / 24);
+  if (d < 30) return `${d}日前`;
+  return `${Math.floor(d/30)}ヶ月前`;
+}
+
+let resumeCheckTimer = null;
+let currentIframe = null;
+
+function playVideo(id, title, channel = '', forceStart = null) {
+  stopPreview();
+  currentVideoId = id;
+  const thumb = `https://img.youtube.com/vi/${id}/mqdefault.jpg`;
+
+  // check resume position
+  const savedPos = getResume(id);
+  const startSec = forceStart !== null ? forceStart : (savedPos > 5 ? savedPos : 0);
+
+  if (startSec > 5 && forceStart === null) {
+    // show resume prompt
+    showResumePrompt(id, title, channel, savedPos);
+    return;
+  }
+
+  document.getElementById('player-section').classList.remove('hidden');
+  const wrap = document.getElementById('player-wrap');
+  wrap.innerHTML =
+    '<button id="player-close" onclick="closePlayer()" style="position:absolute;top:8px;right:8px;z-index:10;width:32px;height:32px;border-radius:50%;background:rgba(0,0,0,0.6);border:none;color:#fff;font-size:18px;display:flex;align-items:center;justify-content:center;cursor:pointer;line-height:1">✕</button>'
+    + '<div id="yt-container"></div>';
+  currentIframe = null;
+
+  document.getElementById('player-title').textContent = title;
+  document.getElementById('player-channel').textContent = channel;
+  document.getElementById('now-bar').classList.add('visible');
+  document.getElementById('now-bar-title').textContent = title;
+
+  // save history
+  saveHistory(id, title, channel, thumb);
+
+  // YT IFrame APIで再生位置を取得して保存
+  clearInterval(resumeCheckTimer);
+  // iframeロード後にYT Playerオブジェクトを初期化
+  initYTPlayer(id, startSec);
+
+  scrollToPlayer();
+  if (accessToken) loadRelatedVideos(id);
+}
+
+function showResumePrompt(id, title, channel, pos) {
+  const wrap = document.getElementById('player-wrap');
+  const sec = document.getElementById('player-section');
+  sec.classList.remove('hidden');
+  wrap.innerHTML = `
+    <div style="background:#111;display:flex;flex-direction:column;align-items:center;justify-content:center;
+      aspect-ratio:16/9;gap:12px;padding:16px;text-align:center">
+      <img src="https://img.youtube.com/vi/${id}/mqdefault.jpg" style="width:120px;border-radius:8px;opacity:0.7">
+      <div style="color:#fff;font-size:13px;font-weight:500">${escHtml(title)}</div>
+      <div style="color:#aaa;font-size:12px">${formatSeconds(pos)} まで視聴済み</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
+        <button onclick="playVideo('${id}','${escAttr(title)}','${escAttr(channel)}',${Math.floor(pos)})"
+          style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:10px 18px;font-size:13px;font-weight:700;cursor:pointer">
+          ▶ ${formatSeconds(pos)}から再生
+        </button>
+        <button onclick="playVideo('${id}','${escAttr(title)}','${escAttr(channel)}',0)"
+          style="background:#333;color:#fff;border:none;border-radius:8px;padding:10px 18px;font-size:13px;cursor:pointer">
+          最初から
+        </button>
+      </div>
+    </div>`;
+  document.getElementById('player-title').textContent = title;
+  document.getElementById('player-channel').textContent = channel;
+  document.getElementById('now-bar').classList.add('visible');
+  document.getElementById('now-bar-title').textContent = title;
+  scrollToPlayer();
+}
+
+
+let ytPlayer = null;
+let ytPlayerVideoId = null;
+
+function initYTPlayer(videoId, startSec) {
+  ytPlayerVideoId = videoId;
+  if (ytPlayer && ytPlayer.destroy) {
+    try { ytPlayer.destroy(); } catch {}
+    ytPlayer = null;
+  }
+  const container = document.getElementById('yt-container');
+  if (!container) return;
+
+  const doCreate = () => {
+    ytPlayer = new YT.Player('yt-container', {
+      width: '100%',
+      height: '100%',
+      videoId: videoId,
+      playerVars: {
+        autoplay: 1,
+        rel: 0,
+        start: Math.floor(startSec || 0),
+        playsinline: 1
+      },
+      events: {
+        onStateChange: (e) => {
+          if (e.data === YT.PlayerState.PLAYING) {
+            clearInterval(resumeCheckTimer);
+            resumeCheckTimer = setInterval(() => {
+              if (ytPlayer && ytPlayer.getCurrentTime && ytPlayerVideoId) {
+                try {
+                  const t = ytPlayer.getCurrentTime();
+                  if (t > 5) saveResume(ytPlayerVideoId, t);
+                } catch {}
+              }
+            }, 5000);
+          } else if (e.data === YT.PlayerState.PAUSED || e.data === YT.PlayerState.ENDED) {
+            clearInterval(resumeCheckTimer);
+            if (ytPlayer && ytPlayer.getCurrentTime && ytPlayerVideoId) {
+              try {
+                const t = ytPlayer.getCurrentTime();
+                if (t > 5) saveResume(ytPlayerVideoId, t);
+              } catch {}
+            }
+          }
+        }
+      }
+    });
+  };
+
+  if (window.YT && window.YT.Player) {
+    doCreate();
+  } else {
+    if (!document.getElementById('yt-api-script')) {
+      const tag = document.createElement('script');
+      tag.id = 'yt-api-script';
+      tag.src = 'https://www.youtube.com/iframe_api';
+      document.head.appendChild(tag);
+    }
+    window.onYouTubeIframeAPIReady = doCreate;
+  }
+}
+
+
+
+function closePlayer() {
+  clearInterval(resumeCheckTimer);
+  currentIframe = null;
+  currentVideoId = null;
+  document.getElementById('player-wrap').innerHTML =
+    '<button id="player-close" onclick="closePlayer()" style="position:absolute;top:8px;right:8px;z-index:10;width:32px;height:32px;border-radius:50%;background:rgba(0,0,0,0.6);border:none;color:#fff;font-size:18px;display:flex;align-items:center;justify-content:center;cursor:pointer;line-height:1">✕</button>';
+  document.getElementById('player-section').classList.add('hidden');
+  document.getElementById('related-section').style.display = 'none';
+  document.getElementById('now-bar').classList.remove('visible');
+}
+
+function playQueueItem(i) {
+  currentVidIndex = i;
+  playVideo(queue[i].id, queue[i].title);
+  renderQueue();
+}
+
+function scrollToPlayer() {
+  document.getElementById('player-section').scrollIntoView({ behavior: 'smooth' });
+}
+
+// ===== QUEUE OPS =====
+function extractVideoId(input) {
+  input = input.trim();
+  if (/^[a-zA-Z0-9_-]{11}$/.test(input)) return input;
+  try {
+    const url = new URL(input.startsWith('http') ? input : 'https://' + input);
+    if (url.hostname.includes('youtu.be')) return url.pathname.slice(1).split('?')[0];
+    if (url.hostname.includes('youtube.com')) return url.searchParams.get('v') || url.pathname.split('/').pop();
+  } catch {}
+  const m = input.match(/(?:v=|youtu\.be\/|embed\/)([a-zA-Z0-9_-]{11})/);
+  return m ? m[1] : null;
+}
+
+async function addToQueue() {
+  const input = document.getElementById('url-input').value;
+  const id = extractVideoId(input);
+  if (!id) { showToast('URLを認識できませんでした'); return; }
+  if (queue.find(v => v.id === id)) { showToast('既に追加済みです'); return; }
+  const item = { id, title: `動画: ${id}`, thumb: `https://img.youtube.com/vi/${id}/mqdefault.jpg` };
+  queue.push(item);
+  document.getElementById('url-input').value = '';
+  renderQueue();
+  try {
+    const r = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${id}&format=json`);
+    const d = await r.json();
+    item.title = d.title || item.title;
+    renderQueue();
+  } catch {}
+  if (currentVidIndex === -1) playQueueItem(queue.length - 1);
+  showToast('追加しました');
+}
+
+function removeFromQueue(i) {
+  queue.splice(i, 1);
+  if (i === currentVidIndex) currentVidIndex = -1;
+  else if (i < currentVidIndex) currentVidIndex--;
+  renderQueue();
+}
+function clearQueue() { queue = []; currentVidIndex = -1; renderQueue(); showToast('キューを削除しました'); }
+function shuffleQueue() { queue = shuffle(queue); currentVidIndex = -1; renderQueue(); showToast('シャッフルしました'); }
+
+// ===== TABS =====
+function switchTab(tab) {
+  stopPreview();
+  currentTab = tab;
+  ['home','keiba','trend','foryou','omakase','search','channels','history','queue'].forEach(t => {
+    document.getElementById(`page-${t}`).style.display = t === tab ? '' : 'none';
+  });
+  document.querySelectorAll('.tab').forEach((el, i) => {
+    el.classList.toggle('active', ['home','keiba','trend','foryou','omakase','search','channels','history','queue'][i] === tab);
+  });
+  if (tab === 'trend' && !trendLoaded) loadTrend();
+  if (tab === 'keiba' && !keibaLoaded) loadKeiba();
+  if (tab === 'foryou' && !forYouLoaded) loadForYou();
+  if (tab === 'omakase') renderOmakaseKeywords();
+  if (tab === 'search') renderSearchHistory();
+  if (tab === 'history') renderHistory();
+}
+
+// ===== UTILS =====
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+function formatDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`;
+}
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function escAttr(s) {
+  return String(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
 
 let toastTimer;
 function showToast(msg) {
@@ -1392,23 +1820,10 @@ function showToast(msg) {
   toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
 }
 
-function escHtml(s) {
-  if (!s) return '';
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
-}
-
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') ['detailOverlay','editOverlay','catOverlay','genOverlay'].forEach(closeModal);
-  if (e.key === 'Enter' && document.getElementById('lockScreen').style.display !== 'none') unlock();
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('url-input').addEventListener('keydown', e => { if (e.key === 'Enter') addToQueue(); });
+  document.getElementById('search-input').addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
 });
-
-// Init
-updateBiometricUI();
-if (hasBiometricRegistered() && isWebAuthnAvailable()) {
-  setTimeout(() => unlockBiometric(true), 300);
-} else {
-  document.getElementById('masterPwInput').focus();
-}
 </script>
 </body>
 </html>

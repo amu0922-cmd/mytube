@@ -1,23 +1,29 @@
 {
-  "name": "PassVault",
-  "short_name": "PassVault",
-  "description": "パスワード管理アプリ",
+  "name": "MyTube",
+  "short_name": "MyTube",
   "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#f5f6fa",
-  "theme_color": "#5b4fff",
+  "background_color": "#f5f5f7",
+  "theme_color": "#ff0040",
+  "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "icon-192.png",
+      "src": "icon.jpg",
       "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "type": "image/jpeg",
+      "purpose": "any"
     },
     {
-      "src": "icon-512.png",
+      "src": "icon.jpg",
       "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "type": "image/jpeg",
+      "purpose": "any"
+    },
+    {
+      "src": "icon.jpg",
+      "sizes": "192x192",
+      "type": "image/jpeg",
+      "purpose": "maskable"
     }
   ]
 }
