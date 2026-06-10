@@ -1233,47 +1233,118 @@ async function loadSubscriptions() {
 async function loadRecentVideos() {
   if (!accessToken) return;
   const el = document.getElementById('recent-videos');
+  document.getElementById('home-section-title').textContent = 'ホーム';
   el.innerHTML = '<div class="loading"><div class="spinner"></div>動画を取得中…</div>';
-  document.getElementById('home-section-title').textContent = '最近の動画';
+
   try {
     if (!subscriptions.length) {
       el.innerHTML = '<div class="empty">チャンネルが見つかりませんでした</div>';
       return;
     }
-    // /activitiesはsearchより軽い（コスト1 vs 100）
-    // 1チャンネルずつ順番に取得（同時並列はAPI制限に引っかかる）
-    const sample = shuffle([...subscriptions]); // 全チャンネル対象
-    const videos = [];
-    for (const ch of sample) {
-      try {
-        const data = await apiGet('/activities', {
-          part: 'snippet,contentDetails',
-          channelId: ch.id,
-          maxResults: 5
-        });
-        (data.items || []).forEach(item => {
-          const upload = item.contentDetails && item.contentDetails.upload;
-          if (upload && upload.videoId) {
-            videos.push({
-              id: upload.videoId,
-              title: item.snippet.title,
-              description: item.snippet.description || '',
-              channel: item.snippet.channelTitle,
-              thumb: item.snippet.thumbnails && item.snippet.thumbnails.medium
-                ? item.snippet.thumbnails.medium.url
-                : (item.snippet.thumbnails && item.snippet.thumbnails.default
-                  ? item.snippet.thumbnails.default.url : ''),
-              date: item.snippet.publishedAt
-            });
-          }
-        });
-      } catch(e) {}
+
+    const allVideos = [];
+
+    // ===== ① 登録チャンネルの最新動画 =====
+    const BATCH = 5;
+    const sample = shuffle([...subscriptions]);
+    for (let i = 0; i < sample.length; i += BATCH) {
+      const batch = sample.slice(i, i + BATCH);
+      await Promise.all(batch.map(async (ch) => {
+        try {
+          const data = await apiGet('/activities', {
+            part: 'snippet,contentDetails', channelId: ch.id, maxResults: 5
+          });
+          (data.items || []).forEach(item => {
+            const upload = item.contentDetails && item.contentDetails.upload;
+            if (upload && upload.videoId) {
+              allVideos.push({
+                id: upload.videoId,
+                title: item.snippet.title,
+                description: item.snippet.description || '',
+                channel: item.snippet.channelTitle,
+                thumb: item.snippet.thumbnails && item.snippet.thumbnails.medium
+                  ? item.snippet.thumbnails.medium.url
+                  : (item.snippet.thumbnails && item.snippet.thumbnails.default
+                    ? item.snippet.thumbnails.default.url : ''),
+                date: item.snippet.publishedAt,
+                source: 'sub'
+              });
+            }
+          });
+        } catch(e) {}
+      }));
     }
-    recentVideos = shuffle(filterShorts(videos));
-    if (recentVideos.length === 0) {
+
+    // ===== ② 視聴履歴からカテゴリ分析してトレンド動画を追加 =====
+    try {
+      const history = getHistory();
+      if (history.length >= 3) {
+        const histIds = history.slice(0, 15).map(v => v.id).join(',');
+        const catData = await apiGet('/videos', { part: 'snippet', id: histIds });
+        const catCount = {};
+        (catData.items || []).forEach(item => {
+          const cat = item.snippet.categoryId;
+          catCount[cat] = (catCount[cat] || 0) + 1;
+        });
+        // 上位2カテゴリのトレンドを取得
+        const topCats = Object.entries(catCount).sort((a,b) => b[1]-a[1]).slice(0, 2);
+        for (const [catId] of topCats) {
+          try {
+            const tdata = await apiGet('/videos', {
+              part: 'snippet,contentDetails', chart: 'mostPopular',
+              regionCode: 'JP', videoCategoryId: catId, maxResults: 20
+            });
+            (tdata.items || []).forEach(item => {
+              allVideos.push({
+                id: item.id,
+                title: item.snippet.title,
+                description: item.snippet.description || '',
+                channel: item.snippet.channelTitle,
+                thumb: item.snippet.thumbnails && item.snippet.thumbnails.medium
+                  ? item.snippet.thumbnails.medium.url
+                  : (item.snippet.thumbnails && item.snippet.thumbnails.default
+                    ? item.snippet.thumbnails.default.url : ''),
+                date: item.snippet.publishedAt,
+                duration: parseDuration(item.contentDetails && item.contentDetails.duration),
+                source: 'trend',
+                catId: catId
+              });
+            });
+          } catch(e) {}
+        }
+      }
+    } catch(e) {}
+
+    // 重複除去・ショートフィルター・シャッフル（登録チャンネル優先）
+    const seen = new Set();
+    const subVideos = filterShorts(allVideos.filter(v => v.source === 'sub'));
+    const trendVideosHome = filterShorts(allVideos.filter(v => v.source === 'trend'));
+    // 登録チャンネルを先に、その後トレンドを混ぜる
+    const merged = [];
+    subVideos.forEach(v => { if (!seen.has(v.id)) { seen.add(v.id); merged.push(v); } });
+    // トレンドはランダムに間に挿入
+    const shuffledTrend = shuffle(trendVideosHome);
+    shuffledTrend.forEach(v => { if (!seen.has(v.id)) { seen.add(v.id); merged.push(v); } });
+
+    recentVideos = merged;
+
+    if (!recentVideos.length) {
       el.innerHTML = '<div class="empty">動画を取得できませんでした<br>更新ボタンをお試しください</div>';
     } else {
-      el.innerHTML = '<div class="video-grid">' + recentVideos.map(v => gridCardHTML(v, false)).join('') + '</div>';
+      // セクション分けして表示
+      const subList = recentVideos.filter(v => v.source === 'sub');
+      const trendList = recentVideos.filter(v => v.source === 'trend');
+      let html2 = '';
+      if (subList.length) {
+        html2 += '<div style="padding:12px 16px 4px"><span style="font-family:Space Grotesk,sans-serif;font-size:13px;font-weight:700;color:var(--text2)">📡 登録チャンネル</span></div>';
+        html2 += '<div class="video-grid">' + subList.map(v => gridCardHTML(v, false)).join('') + '</div>';
+      }
+      if (trendList.length) {
+        const catName = YT_CATEGORIES[trendList[0].catId] || 'おすすめ';
+        html2 += '<div style="padding:16px 16px 4px"><span style="font-family:Space Grotesk,sans-serif;font-size:13px;font-weight:700;color:var(--text2)">🎯 あなたへのおすすめ（' + catName + '）</span></div>';
+        html2 += '<div class="video-grid">' + trendList.map(v => gridCardHTML(v, false)).join('') + '</div>';
+      }
+      el.innerHTML = html2;
     }
   } catch (e) {
     el.innerHTML = '<div class="empty">取得失敗: ' + e.message + '</div>';
