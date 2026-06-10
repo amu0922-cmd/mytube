@@ -626,7 +626,7 @@
   <!-- QUEUE -->
   <div id="page-queue" style="display:none">
     <div class="input-row">
-      <input class="url-input" id="url-input" placeholder="YouTubeのURLまたは動画IDを入力…" />
+      <input class="url-input" id="url-input" placeholder="動画URL (YouTube/Vimeo/ニコニコ等)" />
       <button class="btn-add" onclick="addToQueue()">追加</button>
     </div>
     <div class="queue-actions">
@@ -1480,18 +1480,33 @@ function renderChannels() {
   subscriptions.forEach(function(ch) { el.appendChild(chItemHTML(ch)); });
 }
 
+const TYPE_BADGES = {
+  youtube: '', vimeo: '🎬 Vimeo', niconico: '📺 ニコニコ',
+  twitch: '🟣 Twitch', video: '📁 動画ファイル', other: '🔗 その他'
+};
+const TYPE_PLACEHOLDERS = {
+  vimeo: '🎬', niconico: '📺', twitch: '🟣', video: '📁', other: '🔗'
+};
+
 function renderQueue() {
   const el = document.getElementById('queue-list');
   if (!queue.length) { el.innerHTML = '<div class="empty">キューが空です<br>URLを入力して動画を追加してください</div>'; return; }
-  el.innerHTML = queue.map((v, i) => `
-    <div class="queue-item ${i === currentVidIndex ? 'playing' : ''}" onclick="playQueueItem(${i})">
-      <div class="q-thumb">${v.thumb ? `<img src="${v.thumb}" alt="">` : ''}</div>
-      <div class="q-info">
-        <div class="q-title">${escHtml(v.title)}</div>
-        <div class="q-id">${v.id}</div>
-      </div>
-      <button class="q-del" onclick="event.stopPropagation();removeFromQueue(${i})">✕</button>
-    </div>`).join('');
+  el.innerHTML = queue.map((v, i) => {
+    const type = v.type || 'youtube';
+    const badge = TYPE_BADGES[type];
+    const thumbHtml = v.thumb
+      ? '<img src="' + v.thumb + '" alt="">'
+      : (type !== 'youtube' ? '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:24px;background:var(--surface3)">' + (TYPE_PLACEHOLDERS[type] || '🔗') + '</div>' : '');
+    return '<div class="queue-item ' + (i === currentVidIndex ? 'playing' : '') + '" onclick="playQueueItem(' + i + ')">'
+      + '<div class="q-thumb">' + thumbHtml + '</div>'
+      + '<div class="q-info">'
+      + (badge ? '<div style="font-size:10px;color:var(--accent);font-weight:700;margin-bottom:2px">' + badge + '</div>' : '')
+      + '<div class="q-title">' + escHtml(v.title) + '</div>'
+      + '<div class="q-id">' + escHtml(v.id) + '</div>'
+      + '</div>'
+      + '<button class="q-del" onclick="event.stopPropagation();removeFromQueue(' + i + ')">✕</button>'
+      + '</div>';
+  }).join('');
 }
 
 // ===== PLAYER =====
@@ -1725,8 +1740,44 @@ function closePlayer() {
 
 function playQueueItem(i) {
   currentVidIndex = i;
-  playVideo(queue[i].id, queue[i].title);
+  const item = queue[i];
+  if (!item.type || item.type === 'youtube') {
+    playVideo(item.id, item.title);
+  } else {
+    playExternalMedia(item);
+  }
   renderQueue();
+}
+
+// YouTube以外のメディアを再生
+function playExternalMedia(item) {
+  stopPreview();
+  clearInterval(resumeCheckTimer);
+  if (ytPlayer && ytPlayer.destroy) { try { ytPlayer.destroy(); } catch {} ytPlayer = null; }
+  currentVideoId = null;
+  ytPlayerVideoId = null;
+
+  document.getElementById('player-section').classList.remove('hidden');
+  const wrap = document.getElementById('player-wrap');
+  const closeBtn = '<button id="player-close" onclick="closePlayer()" style="position:absolute;top:8px;right:8px;z-index:10;width:32px;height:32px;border-radius:50%;background:rgba(0,0,0,0.6);border:none;color:#fff;font-size:18px;display:flex;align-items:center;justify-content:center;cursor:pointer;line-height:1">✕</button>';
+
+  let mediaHtml = '';
+  if (item.type === 'video') {
+    mediaHtml = '<video src="' + item.embedUrl + '" controls autoplay playsinline style="width:100%;height:100%;object-fit:contain;background:#000"></video>';
+  } else {
+    // vimeo, niconico, twitch, other -> iframe
+    mediaHtml = '<iframe src="' + item.embedUrl + '" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen style="width:100%;height:100%;border:none"></iframe>';
+  }
+
+  wrap.innerHTML = closeBtn + mediaHtml;
+
+  document.getElementById('player-title').textContent = item.title;
+  document.getElementById('player-channel').textContent = item.type.toUpperCase();
+  document.getElementById('now-bar').classList.add('visible');
+  document.getElementById('now-bar-title').textContent = item.title;
+  document.getElementById('related-section').style.display = 'none';
+
+  scrollToPlayer();
 }
 
 function scrollToPlayer() {
@@ -1734,33 +1785,133 @@ function scrollToPlayer() {
 }
 
 // ===== QUEUE OPS =====
-function extractVideoId(input) {
+// 入力URLを解析して { type, id/url, embedUrl } を返す
+// type: 'youtube' | 'vimeo' | 'niconico' | 'video' | 'other'
+function parseMediaUrl(input) {
   input = input.trim();
-  if (/^[a-zA-Z0-9_-]{11}$/.test(input)) return input;
+
+  // YouTube動画ID直接入力
+  if (/^[a-zA-Z0-9_-]{11}$/.test(input)) {
+    return { type: 'youtube', id: input };
+  }
+
+  let url;
   try {
-    const url = new URL(input.startsWith('http') ? input : 'https://' + input);
-    if (url.hostname.includes('youtu.be')) return url.pathname.slice(1).split('?')[0];
-    if (url.hostname.includes('youtube.com')) return url.searchParams.get('v') || url.pathname.split('/').pop();
-  } catch {}
-  const m = input.match(/(?:v=|youtu\.be\/|embed\/)([a-zA-Z0-9_-]{11})/);
-  return m ? m[1] : null;
+    url = new URL(input.startsWith('http') ? input : 'https://' + input);
+  } catch {
+    return null;
+  }
+
+  const host = url.hostname.replace('www.', '');
+
+  // YouTube
+  if (host === 'youtu.be') {
+    const id = url.pathname.slice(1).split('?')[0];
+    if (id) return { type: 'youtube', id };
+  }
+  if (host.includes('youtube.com')) {
+    const id = url.searchParams.get('v') || (url.pathname.startsWith('/shorts/') ? url.pathname.split('/')[2] : url.pathname.split('/').pop());
+    if (id) return { type: 'youtube', id };
+  }
+
+  // Vimeo
+  if (host.includes('vimeo.com')) {
+    const m = url.pathname.match(/(\d+)/);
+    if (m) return { type: 'vimeo', id: m[1], embedUrl: 'https://player.vimeo.com/video/' + m[1] };
+  }
+
+  // ニコニコ動画
+  if (host.includes('nicovideo.jp') || host.includes('nico.ms')) {
+    const m = url.pathname.match(/(sm|so|nm)(\d+)/);
+    if (m) {
+      const vid = m[1] + m[2];
+      return { type: 'niconico', id: vid, embedUrl: 'https://embed.nicovideo.jp/watch/' + vid };
+    }
+  }
+
+  // Twitch
+  if (host.includes('twitch.tv')) {
+    const parts = url.pathname.split('/').filter(Boolean);
+    if (parts.length === 1) {
+      // チャンネルライブ
+      return { type: 'twitch', id: parts[0], embedUrl: 'https://player.twitch.tv/?channel=' + parts[0] + '&parent=' + location.hostname };
+    }
+    if (parts[0] === 'videos' && parts[1]) {
+      return { type: 'twitch', id: parts[1], embedUrl: 'https://player.twitch.tv/?video=' + parts[1] + '&parent=' + location.hostname };
+    }
+  }
+
+  // 直接動画ファイル (.mp4, .webm, .ogg, .m3u8)
+  if (/\.(mp4|webm|ogg|m3u8|mov)(\?|$)/i.test(url.pathname)) {
+    return { type: 'video', id: input, embedUrl: input };
+  }
+
+  // それ以外: iframe埋め込みを試す（自己責任）
+  return { type: 'other', id: input, embedUrl: input };
+}
+
+// 旧関数名を維持（YouTube専用、互換性のため）
+function extractVideoId(input) {
+  const r = parseMediaUrl(input);
+  return (r && r.type === 'youtube') ? r.id : null;
 }
 
 async function addToQueue() {
   const input = document.getElementById('url-input').value;
-  const id = extractVideoId(input);
-  if (!id) { showToast('URLを認識できませんでした'); return; }
-  if (queue.find(v => v.id === id)) { showToast('既に追加済みです'); return; }
-  const item = { id, title: `動画: ${id}`, thumb: `https://img.youtube.com/vi/${id}/mqdefault.jpg` };
+  const parsed = parseMediaUrl(input);
+  if (!parsed) { showToast('URLを認識できませんでした'); return; }
+
+  if (queue.find(v => v.id === parsed.id && v.type === parsed.type)) {
+    showToast('既に追加済みです'); return;
+  }
+
+  let item;
+  switch (parsed.type) {
+    case 'youtube':
+      item = {
+        id: parsed.id, type: 'youtube',
+        title: '動画: ' + parsed.id,
+        thumb: 'https://img.youtube.com/vi/' + parsed.id + '/mqdefault.jpg'
+      };
+      break;
+    case 'vimeo':
+      item = { id: parsed.id, type: 'vimeo', embedUrl: parsed.embedUrl, title: 'Vimeo: ' + parsed.id, thumb: '' };
+      break;
+    case 'niconico':
+      item = { id: parsed.id, type: 'niconico', embedUrl: parsed.embedUrl, title: 'ニコニコ: ' + parsed.id, thumb: '' };
+      break;
+    case 'twitch':
+      item = { id: parsed.id, type: 'twitch', embedUrl: parsed.embedUrl, title: 'Twitch: ' + parsed.id, thumb: '' };
+      break;
+    case 'video':
+      item = { id: parsed.id, type: 'video', embedUrl: parsed.embedUrl, title: input.split('/').pop(), thumb: '' };
+      break;
+    default:
+      item = { id: parsed.id, type: 'other', embedUrl: parsed.embedUrl, title: input, thumb: '' };
+  }
+
   queue.push(item);
   document.getElementById('url-input').value = '';
   renderQueue();
-  try {
-    const r = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${id}&format=json`);
-    const d = await r.json();
-    item.title = d.title || item.title;
-    renderQueue();
-  } catch {}
+
+  // YouTubeのみoEmbedでタイトル取得
+  if (parsed.type === 'youtube') {
+    try {
+      const r = await fetch('https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=' + parsed.id + '&format=json');
+      const d = await r.json();
+      item.title = d.title || item.title;
+      renderQueue();
+    } catch {}
+  } else if (parsed.type === 'vimeo') {
+    try {
+      const r = await fetch('https://vimeo.com/api/oembed.json?url=' + encodeURIComponent(input));
+      const d = await r.json();
+      item.title = d.title || item.title;
+      item.thumb = d.thumbnail_url || '';
+      renderQueue();
+    } catch {}
+  }
+
   if (currentVidIndex === -1) playQueueItem(queue.length - 1);
   showToast('追加しました');
 }
