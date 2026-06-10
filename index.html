@@ -826,37 +826,36 @@ function addOmakaseKeyword() {
 async function playOmakase(keyword, card) {
   if (!accessToken) { showToast('ログインしてください'); return; }
   card.classList.add('loading');
-  const nowEl = document.getElementById('omakase-now');
   const resultEl = document.getElementById('omakase-result');
-  nowEl.style.display = 'block';
-  nowEl.textContent = '「' + keyword + '」の人気動画を検索中…';
-  resultEl.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  resultEl.innerHTML = '<div class="loading"><div class="spinner"></div>「' + keyword + '」を検索中…</div>';
 
   try {
-    // 人気順で検索、上位50件からランダムに1本再生
     const data = await apiGet('/search', {
       part: 'snippet', q: keyword, type: 'video',
-      maxResults: 50, order: 'viewCount',
-      regionCode: 'JP', relevanceLanguage: 'ja'
+      maxResults: 25, order: 'relevance',
+      regionCode: 'JP'
     });
-    const videos = filterShorts((data.items || []).filter(i => i.id.videoId).map(item => ({
+    const items = (data.items || []).filter(i => i.id && i.id.videoId);
+    const videos = filterShorts(items.map(item => ({
       id: item.id.videoId,
       title: item.snippet.title,
       description: item.snippet.description || '',
       channel: item.snippet.channelTitle,
-      thumb: item.snippet.thumbnails?.medium?.url || '',
+      thumb: (item.snippet.thumbnails && item.snippet.thumbnails.medium)
+        ? item.snippet.thumbnails.medium.url : '',
       date: item.snippet.publishedAt
     })));
-    if (!videos.length) { showToast('動画が見つかりませんでした'); card.classList.remove('loading'); return; }
-
-    // 上位20件からランダムに1本
-    const pick = videos.slice(0, 20)[Math.floor(Math.random() * Math.min(20, videos.length))];
-    nowEl.textContent = '▶ ' + pick.title;
+    if (!videos.length) {
+      resultEl.innerHTML = '<div class="empty">動画が見つかりませんでした</div>';
+      card.classList.remove('loading');
+      return;
+    }
+    const pick = videos[Math.floor(Math.random() * Math.min(10, videos.length))];
     resultEl.innerHTML = '<div class="video-list">' + videos.slice(0, 10).map(v => listCardHTML(v)).join('') + '</div>';
     playVideo(pick.id, pick.title, pick.channel);
   } catch(e) {
-    nowEl.style.display = 'none';
-    resultEl.innerHTML = '<div class="empty">取得失敗: ' + e.message + '<br><small>しばらく待って再度お試しください</small></div>';
+    resultEl.innerHTML = '<div class="empty">エラー: ' + e.message + '</div>';
+    showToast('エラー: ' + e.message);
   }
   card.classList.remove('loading');
 }
@@ -1398,17 +1397,10 @@ function playVideo(id, title, channel = '', forceStart = null) {
   // save history
   saveHistory(id, title, channel, thumb);
 
-  // resume位置をURLのstartパラメータから逆算して定期保存
+  // YT IFrame APIで再生位置を取得して保存
   clearInterval(resumeCheckTimer);
-  let resumeStartTime = Date.now();
-  let resumeStartSec = Math.floor(startSec);
-  resumeCheckTimer = setInterval(() => {
-    if (currentVideoId) {
-      const elapsed = Math.floor((Date.now() - resumeStartTime) / 1000);
-      const currentSec = resumeStartSec + elapsed;
-      saveResume(currentVideoId, currentSec);
-    }
-  }, 5000);
+  // iframeロード後にYT Playerオブジェクトを初期化
+  setTimeout(() => { initYTPlayer(id); }, 2000);
 
   scrollToPlayer();
   if (accessToken) loadRelatedVideos(id);
@@ -1442,7 +1434,63 @@ function showResumePrompt(id, title, channel, pos) {
   scrollToPlayer();
 }
 
-// resume tracking via elapsed time
+
+let ytPlayer = null;
+let ytPlayerVideoId = null;
+
+function initYTPlayer(videoId) {
+  ytPlayerVideoId = videoId;
+  const iframe = document.getElementById('yt-iframe');
+  if (!iframe) return;
+  if (window.YT && window.YT.Player) {
+    createYTPlayer(iframe);
+  } else {
+    // YT API未ロードなら読み込む
+    if (!document.getElementById('yt-api-script')) {
+      const tag = document.createElement('script');
+      tag.id = 'yt-api-script';
+      tag.src = 'https://www.youtube.com/iframe_api';
+      document.head.appendChild(tag);
+    }
+    window.onYouTubeIframeAPIReady = () => {
+      const f = document.getElementById('yt-iframe');
+      if (f) createYTPlayer(f);
+    };
+  }
+}
+
+function createYTPlayer(iframe) {
+  if (ytPlayer && ytPlayer.destroy) {
+    try { ytPlayer.destroy(); } catch {}
+  }
+  ytPlayer = new YT.Player(iframe, {
+    events: {
+      onStateChange: (e) => {
+        // 再生中は5秒ごとに位置保存
+        if (e.data === YT.PlayerState.PLAYING) {
+          clearInterval(resumeCheckTimer);
+          resumeCheckTimer = setInterval(() => {
+            if (ytPlayer && ytPlayer.getCurrentTime && ytPlayerVideoId) {
+              try {
+                const t = ytPlayer.getCurrentTime();
+                if (t > 5) saveResume(ytPlayerVideoId, t);
+              } catch {}
+            }
+          }, 5000);
+        } else if (e.data === YT.PlayerState.PAUSED || e.data === YT.PlayerState.ENDED) {
+          clearInterval(resumeCheckTimer);
+          if (ytPlayer && ytPlayer.getCurrentTime && ytPlayerVideoId) {
+            try {
+              const t = ytPlayer.getCurrentTime();
+              if (t > 5) saveResume(ytPlayerVideoId, t);
+            } catch {}
+          }
+        }
+      }
+    }
+  });
+}
+
 
 
 function closePlayer() {
