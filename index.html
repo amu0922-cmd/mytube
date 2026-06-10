@@ -1287,12 +1287,12 @@ async function loadRecentVideos() {
           catCount[cat] = (catCount[cat] || 0) + 1;
         });
         // 上位2カテゴリのトレンドを取得
-        const topCats = Object.entries(catCount).sort((a,b) => b[1]-a[1]).slice(0, 2);
+        const topCats = Object.entries(catCount).sort((a,b) => b[1]-a[1]).slice(0, 3);
         for (const [catId] of topCats) {
           try {
             const tdata = await apiGet('/videos', {
               part: 'snippet,contentDetails', chart: 'mostPopular',
-              regionCode: 'JP', videoCategoryId: catId, maxResults: 20
+              regionCode: 'JP', videoCategoryId: catId, maxResults: 50
             });
             (tdata.items || []).forEach(item => {
               allVideos.push({
@@ -1340,8 +1340,8 @@ async function loadRecentVideos() {
         html2 += '<div class="video-grid">' + subList.map(v => gridCardHTML(v, false)).join('') + '</div>';
       }
       if (trendList.length) {
-        const catName = YT_CATEGORIES[trendList[0].catId] || 'おすすめ';
-        html2 += '<div style="padding:16px 16px 4px"><span style="font-family:Space Grotesk,sans-serif;font-size:13px;font-weight:700;color:var(--text2)">🎯 あなたへのおすすめ（' + catName + '）</span></div>';
+        const catNames = [...new Set(trendList.map(v => YT_CATEGORIES[v.catId] || ''))].filter(Boolean).join('・');
+        html2 += '<div style="padding:16px 16px 4px"><span style="font-family:Space Grotesk,sans-serif;font-size:13px;font-weight:700;color:var(--text2)">🎯 あなたへのおすすめ（' + catNames + '）</span></div>';
         html2 += '<div class="video-grid">' + trendList.map(v => gridCardHTML(v, false)).join('') + '</div>';
       }
       el.innerHTML = html2;
