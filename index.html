@@ -667,14 +667,28 @@ async function apiGet(endpoint, params = {}) {
 
 
 
+
+function parseDuration(iso) {
+  if (!iso) return null;
+  const m = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+  if (!m) return null;
+  return (parseInt(m[1]||0)*3600) + (parseInt(m[2]||0)*60) + parseInt(m[3]||0);
+}
 // ===== SHORTS FILTER =====
-function isShorts(title) {
-  if (!title) return false;
-  const t = title.toLowerCase();
-  return t.includes('#shorts') || t.includes('#short') || t.includes('#ショート');
+function isShorts(video) {
+  const title = (video.title || '').toLowerCase();
+  const desc = (video.description || '').toLowerCase();
+  // タイトル・説明文のハッシュタグ
+  if (title.includes('#shorts') || title.includes('#short') || title.includes('#ショート')) return true;
+  if (desc.includes('#shorts') || desc.includes('#short')) return true;
+  // サムネイルURLがShortsのもの（縦長サムネ判定）
+  if (video.thumb && video.thumb.includes('/shorts/')) return true;
+  // durationが設定されていれば60秒以下はショート
+  if (video.duration && video.duration <= 60) return true;
+  return false;
 }
 function filterShorts(videos) {
-  return videos.filter(v => !isShorts(v.title));
+  return videos.filter(v => !isShorts(v));
 }
 
 // ===== FOR YOU =====
@@ -746,9 +760,11 @@ async function loadForYou() {
     }
     const videos = allVideos.map((item, i) => ({
       id: item.id, title: item.snippet.title,
+      description: item.snippet.description || '',
       channel: item.snippet.channelTitle,
       thumb: item.snippet.thumbnails?.medium?.url || item.snippet.thumbnails?.default?.url || '',
       date: item.snippet.publishedAt,
+      duration: parseDuration(item.contentDetails && item.contentDetails.duration),
       rank: i + 1
     }));
     if (!videos.length) {
@@ -773,17 +789,19 @@ async function loadTrend() {
   trendLoaded = true;
   try {
     const allVideos = [];
-    const d1 = await apiGet('/videos', { part: 'snippet', chart: 'mostPopular', regionCode: 'JP', maxResults: 50 });
+    const d1 = await apiGet('/videos', { part: 'snippet,contentDetails', chart: 'mostPopular', regionCode: 'JP', maxResults: 50 });
     (d1.items || []).forEach(item => allVideos.push(item));
     if (d1.nextPageToken) {
-      const d2 = await apiGet('/videos', { part: 'snippet', chart: 'mostPopular', regionCode: 'JP', maxResults: 50, pageToken: d1.nextPageToken });
+      const d2 = await apiGet('/videos', { part: 'snippet,contentDetails', chart: 'mostPopular', regionCode: 'JP', maxResults: 50, pageToken: d1.nextPageToken });
       (d2.items || []).forEach(item => allVideos.push(item));
     }
     const videos = allVideos.map((item, i) => ({
       id: item.id, title: item.snippet.title,
+      description: item.snippet.description || '',
       channel: item.snippet.channelTitle,
       thumb: item.snippet.thumbnails?.medium?.url || item.snippet.thumbnails?.default?.url || '',
       date: item.snippet.publishedAt,
+      duration: parseDuration(item.contentDetails && item.contentDetails.duration),
       rank: i + 1
     }));
     const filteredT = filterShorts(videos);
@@ -934,6 +952,7 @@ async function loadRecentVideos() {
             videos.push({
               id: upload.videoId,
               title: item.snippet.title,
+              description: item.snippet.description || '',
               channel: item.snippet.channelTitle,
               thumb: item.snippet.thumbnails && item.snippet.thumbnails.medium
                 ? item.snippet.thumbnails.medium.url
