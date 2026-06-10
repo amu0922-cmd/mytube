@@ -74,6 +74,7 @@
 
   /* TABS */
   .tabs {
+    touch-action: pan-x;
     display: flex; gap: 6px; padding: 10px 16px;
     background: rgba(255,255,255,0.92);
     backdrop-filter: blur(12px);
@@ -88,6 +89,9 @@
     border: 1.5px solid var(--border); background: var(--surface);
     color: var(--text2); transition: all 0.2s;
     white-space: nowrap;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
   }
   .tab.active { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
 
@@ -474,15 +478,15 @@
 </header>
 
 <div class="tabs">
-  <button class="tab active" id="tab-home">ホーム</button>
-  <button class="tab" id="tab-keiba">🐴 競馬</button>
-  <button class="tab" id="tab-trend">🏆 トレンド</button>
-  <button class="tab" id="tab-foryou">🎯 あなた向け</button>
-  <button class="tab" id="tab-omakase">🎰 おまかせ</button>
-  <button class="tab" id="tab-search">🔍 検索</button>
-  <button class="tab" id="tab-channels">チャンネル</button>
-  <button class="tab" id="tab-history">🕐 履歴</button>
-  <button class="tab" id="tab-queue">キュー</button>
+  <button class="tab active" id="tab-home" onclick="switchTab('home')">ホーム</button>
+  <button class="tab" id="tab-keiba" onclick="switchTab('keiba')">🐴 競馬</button>
+  <button class="tab" id="tab-trend" onclick="switchTab('trend')">🏆 トレンド</button>
+  <button class="tab" id="tab-foryou" onclick="switchTab('foryou')">🎯 あなた向け</button>
+  <button class="tab" id="tab-omakase" onclick="switchTab('omakase')">🎰 おまかせ</button>
+  <button class="tab" id="tab-search" onclick="switchTab('search')">🔍 検索</button>
+  <button class="tab" id="tab-channels" onclick="switchTab('channels')">チャンネル</button>
+  <button class="tab" id="tab-history" onclick="switchTab('history')">🕐 履歴</button>
+  <button class="tab" id="tab-queue" onclick="switchTab('queue')">キュー</button>
 </div>
 
 <div id="player-section" class="hidden">
