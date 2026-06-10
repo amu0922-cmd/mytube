@@ -612,13 +612,35 @@ function initTokenClient() {
   tokenClient = google.accounts.oauth2.initTokenClient({
     client_id: CLIENT_ID, scope: SCOPES,
     callback: (resp) => {
-      if (resp.error) { showToast('ログイン失敗: ' + resp.error); return; }
+      if (resp.error) {
+        // サイレント更新失敗時はユーザーに通知
+        if (resp.error !== 'interaction_required') {
+          showToast('ログイン失敗: ' + resp.error);
+        }
+        return;
+      }
+      const isFirstLogin = !accessToken;
       accessToken = resp.access_token;
       localStorage.setItem('yt_token', accessToken);
-      localStorage.setItem('yt_token_expiry', Date.now() + 55 * 60 * 1000); // 55分
-      onLoggedIn();
+      localStorage.setItem('yt_token_expiry', Date.now() + 55 * 60 * 1000);
+      if (isFirstLogin) {
+        onLoggedIn();
+      }
+      // 50分後に自動サイレント更新をスケジュール
+      scheduleTokenRefresh();
     }
   });
+}
+
+let refreshTimer = null;
+function scheduleTokenRefresh() {
+  if (refreshTimer) clearTimeout(refreshTimer);
+  // 50分後にサイレント更新（prompt不要）
+  refreshTimer = setTimeout(() => {
+    if (accessToken && tokenClient) {
+      tokenClient.requestAccessToken({ prompt: '' });
+    }
+  }, 50 * 60 * 1000);
 }
 function handleLogin() {
   if (!tokenClient) { showToast('Google SDKを読み込み中…'); return; }
@@ -674,6 +696,19 @@ function parseDuration(iso) {
   if (!m) return null;
   return (parseInt(m[1]||0)*3600) + (parseInt(m[2]||0)*60) + parseInt(m[3]||0);
 }
+
+// ページ復帰時にトークン期限チェック
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && accessToken) {
+    const expiry = parseInt(localStorage.getItem('yt_token_expiry') || '0');
+    const remaining = expiry - Date.now();
+    if (remaining < 5 * 60 * 1000) {
+      // 残り5分以下なら即更新
+      if (tokenClient) tokenClient.requestAccessToken({ prompt: '' });
+    }
+  }
+});
+
 // ===== SHORTS FILTER =====
 function isShorts(video) {
   const title = (video.title || '').toLowerCase();
@@ -937,14 +972,14 @@ async function loadRecentVideos() {
     }
     // /activitiesはsearchより軽い（コスト1 vs 100）
     // 1チャンネルずつ順番に取得（同時並列はAPI制限に引っかかる）
-    const sample = shuffle([...subscriptions]).slice(0, 8);
+    const sample = shuffle([...subscriptions]); // 全チャンネル対象
     const videos = [];
     for (const ch of sample) {
       try {
         const data = await apiGet('/activities', {
           part: 'snippet,contentDetails',
           channelId: ch.id,
-          maxResults: 3
+          maxResults: 5
         });
         (data.items || []).forEach(item => {
           const upload = item.contentDetails && item.contentDetails.upload;
