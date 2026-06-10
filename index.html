@@ -470,7 +470,9 @@
 </div>
 
 <div id="player-section" class="hidden">
-  <div id="player-wrap"></div>
+  <div id="player-wrap" style="position:relative">
+    <button id="player-close" onclick="closePlayer()" style="position:absolute;top:8px;right:8px;z-index:10;width:32px;height:32px;border-radius:50%;background:rgba(0,0,0,0.6);border:none;color:#fff;font-size:18px;display:flex;align-items:center;justify-content:center;cursor:pointer;line-height:1">✕</button>
+  </div>
   <div class="player-info">
     <div class="player-title" id="player-title">—</div>
     <div class="player-channel" id="player-channel"></div>
@@ -854,7 +856,7 @@ async function playOmakase(keyword, card) {
     playVideo(pick.id, pick.title, pick.channel);
   } catch(e) {
     nowEl.style.display = 'none';
-    resultEl.innerHTML = '<div class="empty">取得失敗: ' + e.message + '</div>';
+    resultEl.innerHTML = '<div class="empty">取得失敗: ' + e.message + '<br><small>しばらく待って再度お試しください</small></div>';
   }
   card.classList.remove('loading');
 }
@@ -1384,7 +1386,8 @@ function playVideo(id, title, channel = '', forceStart = null) {
   const src = `https://www.youtube.com/embed/${id}?autoplay=1&rel=0&start=${Math.floor(startSec)}&enablejsapi=1`;
   document.getElementById('player-section').classList.remove('hidden');
   document.getElementById('player-wrap').innerHTML =
-    `<iframe id="yt-iframe" src="${src}" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>`;
+    `<button id="player-close" onclick="closePlayer()" style="position:absolute;top:8px;right:8px;z-index:10;width:32px;height:32px;border-radius:50%;background:rgba(0,0,0,0.6);border:none;color:#fff;font-size:18px;display:flex;align-items:center;justify-content:center;cursor:pointer;line-height:1">✕</button>
+    <iframe id="yt-iframe" src="${src}" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>`;
   currentIframe = document.getElementById('yt-iframe');
 
   document.getElementById('player-title').textContent = title;
@@ -1395,11 +1398,15 @@ function playVideo(id, title, channel = '', forceStart = null) {
   // save history
   saveHistory(id, title, channel, thumb);
 
-  // save resume position every 5 seconds via postMessage polling
+  // resume位置をURLのstartパラメータから逆算して定期保存
   clearInterval(resumeCheckTimer);
+  let resumeStartTime = Date.now();
+  let resumeStartSec = Math.floor(startSec);
   resumeCheckTimer = setInterval(() => {
-    if (currentIframe) {
-      try { currentIframe.contentWindow.postMessage('{"event":"command","func":"getCurrentTime","args":""}', '*'); } catch {}
+    if (currentVideoId) {
+      const elapsed = Math.floor((Date.now() - resumeStartTime) / 1000);
+      const currentSec = resumeStartSec + elapsed;
+      saveResume(currentVideoId, currentSec);
     }
   }, 5000);
 
@@ -1435,16 +1442,19 @@ function showResumePrompt(id, title, channel, pos) {
   scrollToPlayer();
 }
 
-// Listen for YouTube iframe postMessage (time updates)
-window.addEventListener('message', (e) => {
-  if (!e.data || typeof e.data !== 'string') return;
-  try {
-    const d = JSON.parse(e.data);
-    if (d.event === 'infoDelivery' && d.info && d.info.currentTime && currentVideoId) {
-      saveResume(currentVideoId, d.info.currentTime);
-    }
-  } catch {}
-});
+// resume tracking via elapsed time
+
+
+function closePlayer() {
+  clearInterval(resumeCheckTimer);
+  currentIframe = null;
+  currentVideoId = null;
+  document.getElementById('player-wrap').innerHTML =
+    '<button id="player-close" onclick="closePlayer()" style="position:absolute;top:8px;right:8px;z-index:10;width:32px;height:32px;border-radius:50%;background:rgba(0,0,0,0.6);border:none;color:#fff;font-size:18px;display:flex;align-items:center;justify-content:center;cursor:pointer;line-height:1">✕</button>';
+  document.getElementById('player-section').classList.add('hidden');
+  document.getElementById('related-section').style.display = 'none';
+  document.getElementById('now-bar').classList.remove('visible');
+}
 
 function playQueueItem(i) {
   currentVidIndex = i;
