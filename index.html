@@ -96,6 +96,7 @@
   #player-section { background: #000; }
   #player-section.hidden { display: none; }
   #player-wrap { width: 100%; aspect-ratio: 16/9; background: #000; position: relative; }
+  #yt-container { width: 100%; height: 100%; position: absolute; inset: 0; }
   #player-wrap iframe, #player-wrap video { width: 100%; height: 100%; border: none; display: block; }
   .player-info {
     padding: 12px 16px; background: var(--surface);
@@ -1382,12 +1383,12 @@ function playVideo(id, title, channel = '', forceStart = null) {
     return;
   }
 
-  const src = `https://www.youtube.com/embed/${id}?autoplay=1&rel=0&start=${Math.floor(startSec)}&enablejsapi=1`;
   document.getElementById('player-section').classList.remove('hidden');
-  document.getElementById('player-wrap').innerHTML =
-    `<button id="player-close" onclick="closePlayer()" style="position:absolute;top:8px;right:8px;z-index:10;width:32px;height:32px;border-radius:50%;background:rgba(0,0,0,0.6);border:none;color:#fff;font-size:18px;display:flex;align-items:center;justify-content:center;cursor:pointer;line-height:1">✕</button>
-    <iframe id="yt-iframe" src="${src}" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>`;
-  currentIframe = document.getElementById('yt-iframe');
+  const wrap = document.getElementById('player-wrap');
+  wrap.innerHTML =
+    '<button id="player-close" onclick="closePlayer()" style="position:absolute;top:8px;right:8px;z-index:10;width:32px;height:32px;border-radius:50%;background:rgba(0,0,0,0.6);border:none;color:#fff;font-size:18px;display:flex;align-items:center;justify-content:center;cursor:pointer;line-height:1">✕</button>'
+    + '<div id="yt-container"></div>';
+  currentIframe = null;
 
   document.getElementById('player-title').textContent = title;
   document.getElementById('player-channel').textContent = channel;
@@ -1400,7 +1401,7 @@ function playVideo(id, title, channel = '', forceStart = null) {
   // YT IFrame APIで再生位置を取得して保存
   clearInterval(resumeCheckTimer);
   // iframeロード後にYT Playerオブジェクトを初期化
-  setTimeout(() => { initYTPlayer(id); }, 2000);
+  initYTPlayer(id, startSec);
 
   scrollToPlayer();
   if (accessToken) loadRelatedVideos(id);
@@ -1438,57 +1439,63 @@ function showResumePrompt(id, title, channel, pos) {
 let ytPlayer = null;
 let ytPlayerVideoId = null;
 
-function initYTPlayer(videoId) {
+function initYTPlayer(videoId, startSec) {
   ytPlayerVideoId = videoId;
-  const iframe = document.getElementById('yt-iframe');
-  if (!iframe) return;
-  if (window.YT && window.YT.Player) {
-    createYTPlayer(iframe);
-  } else {
-    // YT API未ロードなら読み込む
-    if (!document.getElementById('yt-api-script')) {
-      const tag = document.createElement('script');
-      tag.id = 'yt-api-script';
-      tag.src = 'https://www.youtube.com/iframe_api';
-      document.head.appendChild(tag);
-    }
-    window.onYouTubeIframeAPIReady = () => {
-      const f = document.getElementById('yt-iframe');
-      if (f) createYTPlayer(f);
-    };
-  }
-}
-
-function createYTPlayer(iframe) {
   if (ytPlayer && ytPlayer.destroy) {
     try { ytPlayer.destroy(); } catch {}
+    ytPlayer = null;
   }
-  ytPlayer = new YT.Player(iframe, {
-    events: {
-      onStateChange: (e) => {
-        // 再生中は5秒ごとに位置保存
-        if (e.data === YT.PlayerState.PLAYING) {
-          clearInterval(resumeCheckTimer);
-          resumeCheckTimer = setInterval(() => {
+  const container = document.getElementById('yt-container');
+  if (!container) return;
+
+  const doCreate = () => {
+    ytPlayer = new YT.Player('yt-container', {
+      width: '100%',
+      height: '100%',
+      videoId: videoId,
+      playerVars: {
+        autoplay: 1,
+        rel: 0,
+        start: Math.floor(startSec || 0),
+        playsinline: 1
+      },
+      events: {
+        onStateChange: (e) => {
+          if (e.data === YT.PlayerState.PLAYING) {
+            clearInterval(resumeCheckTimer);
+            resumeCheckTimer = setInterval(() => {
+              if (ytPlayer && ytPlayer.getCurrentTime && ytPlayerVideoId) {
+                try {
+                  const t = ytPlayer.getCurrentTime();
+                  if (t > 5) saveResume(ytPlayerVideoId, t);
+                } catch {}
+              }
+            }, 5000);
+          } else if (e.data === YT.PlayerState.PAUSED || e.data === YT.PlayerState.ENDED) {
+            clearInterval(resumeCheckTimer);
             if (ytPlayer && ytPlayer.getCurrentTime && ytPlayerVideoId) {
               try {
                 const t = ytPlayer.getCurrentTime();
                 if (t > 5) saveResume(ytPlayerVideoId, t);
               } catch {}
             }
-          }, 5000);
-        } else if (e.data === YT.PlayerState.PAUSED || e.data === YT.PlayerState.ENDED) {
-          clearInterval(resumeCheckTimer);
-          if (ytPlayer && ytPlayer.getCurrentTime && ytPlayerVideoId) {
-            try {
-              const t = ytPlayer.getCurrentTime();
-              if (t > 5) saveResume(ytPlayerVideoId, t);
-            } catch {}
           }
         }
       }
+    });
+  };
+
+  if (window.YT && window.YT.Player) {
+    doCreate();
+  } else {
+    if (!document.getElementById('yt-api-script')) {
+      const tag = document.createElement('script');
+      tag.id = 'yt-api-script';
+      tag.src = 'https://www.youtube.com/iframe_api';
+      document.head.appendChild(tag);
     }
-  });
+    window.onYouTubeIframeAPIReady = doCreate;
+  }
 }
 
 
