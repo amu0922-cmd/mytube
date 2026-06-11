@@ -109,6 +109,29 @@
   #player-wrap { width: 100%; aspect-ratio: 16/9; background: #000; position: relative; }
   #yt-container { width: 100%; height: 100%; position: absolute; inset: 0; }
   #player-wrap iframe, #player-wrap video { width: 100%; height: 100%; border: none; display: block; }
+
+  /* フルスクリーン時はaspect-ratio制約を解除して画面全体に広げる */
+  #player-wrap:fullscreen,
+  #player-wrap:-webkit-full-screen {
+    aspect-ratio: unset;
+    width: 100vw;
+    height: 100vh;
+  }
+  #player-wrap:fullscreen #yt-container,
+  #player-wrap:-webkit-full-screen #yt-container,
+  #player-wrap:fullscreen iframe,
+  #player-wrap:-webkit-full-screen iframe,
+  #player-wrap:fullscreen video,
+  #player-wrap:-webkit-full-screen video {
+    width: 100% !important;
+    height: 100% !important;
+  }
+  /* iframe自体がフルスクリーンになる場合 */
+  iframe:fullscreen,
+  iframe:-webkit-full-screen {
+    width: 100vw !important;
+    height: 100vh !important;
+  }
   .player-info {
     padding: 12px 16px; background: var(--surface);
     border-bottom: 1px solid var(--border);
@@ -782,6 +805,32 @@ document.addEventListener('visibilitychange', () => {
     if (remaining < 5 * 60 * 1000) {
       // 残り5分以下なら即更新
       if (tokenClient) tokenClient.requestAccessToken({ prompt: '' });
+    }
+  }
+});
+
+
+// ===== FULLSCREEN ORIENTATION =====
+// フルスクリーン時に横画面へ自動回転（対応ブラウザのみ）
+document.addEventListener('fullscreenchange', () => {
+  if (document.fullscreenElement) {
+    if (screen.orientation && screen.orientation.lock) {
+      screen.orientation.lock('landscape').catch(() => {});
+    }
+  } else {
+    if (screen.orientation && screen.orientation.unlock) {
+      try { screen.orientation.unlock(); } catch {}
+    }
+  }
+});
+document.addEventListener('webkitfullscreenchange', () => {
+  if (document.webkitFullscreenElement) {
+    if (screen.orientation && screen.orientation.lock) {
+      screen.orientation.lock('landscape').catch(() => {});
+    }
+  } else {
+    if (screen.orientation && screen.orientation.unlock) {
+      try { screen.orientation.unlock(); } catch {}
     }
   }
 });
