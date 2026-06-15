@@ -482,15 +482,6 @@
 
 
   /* KEIBA */
-  .keiba-cat-btn {
-    flex-shrink: 0; padding: 6px 14px; border-radius: 16px;
-    font-size: 12px; font-weight: 600; cursor: pointer;
-    border: 1.5px solid var(--border); background: var(--surface);
-    color: var(--text2); white-space: nowrap; transition: all 0.2s;
-  }
-  .keiba-cat-btn.active {
-    background: #1a6b3a; border-color: #1a6b3a; color: #fff;
-  }
 
   </style>
 </head>
@@ -508,7 +499,6 @@
 
 <div class="tabs">
   <button class="tab active" id="tab-home" onclick="switchTab('home')">ホーム</button>
-  <button class="tab" id="tab-keiba" onclick="switchTab('keiba')">🐴 競馬</button>
   <button class="tab" id="tab-trend" onclick="switchTab('trend')">🏆 トレンド</button>
   <button class="tab" id="tab-foryou" onclick="switchTab('foryou')">🎯 あなた向け</button>
   <button class="tab" id="tab-omakase" onclick="switchTab('omakase')">🎰 おまかせ</button>
@@ -535,22 +525,6 @@
 
 <main>
 
-
-  <!-- KEIBA -->
-  <div id="page-keiba" style="display:none">
-    <div class="section-hd">
-      <h3>🐴 競馬動画</h3>
-      <a onclick="loadKeiba()">更新</a>
-    </div>
-    <div style="padding:0 16px 8px;display:flex;gap:6px;overflow-x:auto;scrollbar-width:none">
-      <button class="keiba-cat-btn active" onclick="filterKeiba('all',this)">すべて</button>
-      <button class="keiba-cat-btn" onclick="filterKeiba('jra',this)">JRA</button>
-      <button class="keiba-cat-btn" onclick="filterKeiba('local',this)">地方</button>
-      <button class="keiba-cat-btn" onclick="filterKeiba('youtuber',this)">予想・実況</button>
-      <button class="keiba-cat-btn" onclick="filterKeiba('overseas',this)">海外</button>
-    </div>
-    <div id="keiba-videos"></div>
-  </div>
 
   <!-- HOME -->
   <div id="page-home" style="display:none">
@@ -953,103 +927,6 @@ async function playOmakase(keyword, card) {
 }
 
 
-// ===== KEIBA =====
-const KEIBA_CHANNELS = {
-  jra: [
-    { id: 'UCj6AKkCWS6FJqf0o5wP45eQ', name: 'JRA公式' },
-    { id: 'UCgFx6fLyvNHQ7M-sKO5gTXg', name: 'JRA-VAN' },
-    { id: 'UC2kAqmeScpm7k3Fp-llDUIg', name: 'テレ東競馬' },
-    { id: 'UCJw-lp-C-Rhwe4WOTZkOxaw', name: 'カンテレ競馬' },
-  ],
-  local: [
-    { id: 'UCjkOgWcS0111xXkAqyhR5Vw', name: 'NAR地方競馬' },
-  ],
-  youtuber: [
-    { id: 'UCO04YSH-5JiCfkT0MBw2jWQ', name: 'JRAに俺は勝つ。' },
-    { id: 'UCfCF0xys4sFKkUlRmjWD1Dw', name: '競馬予想TV' },
-    { id: 'UCPLTernUVcoJl7BvAbckwzg', name: 'ウマニティ' },
-    { id: 'UCztTkAXjEXeQ5yGRn6mKOCQ', name: '競馬全レース予想TV' },
-  ],
-  overseas: [
-    { id: 'UCiMDOqMCHFzeGBbKA69KLYA', name: 'TVG Network' },
-    { id: 'UCqFIu4QKZEBhTzCXGnFBPaQ', name: 'Racing TV' },
-  ]
-};
-
-let keibaAllVideos = [];
-let keibaCurrentCat = 'all';
-let keibaLoaded = false;
-
-async function loadKeiba() {
-  if (!accessToken) { showToast('ログインが必要です'); return; }
-  const el = document.getElementById('keiba-videos');
-  el.innerHTML = '<div class="loading"><div class="spinner"></div>競馬動画を取得中…</div>';
-  keibaLoaded = true;
-  keibaAllVideos = [];
-
-  // 全チャンネルから並列取得
-  const allChannels = [
-    ...KEIBA_CHANNELS.jra.map(c => ({...c, cat: 'jra'})),
-    ...KEIBA_CHANNELS.local.map(c => ({...c, cat: 'local'})),
-    ...KEIBA_CHANNELS.youtuber.map(c => ({...c, cat: 'youtuber'})),
-    ...KEIBA_CHANNELS.overseas.map(c => ({...c, cat: 'overseas'})),
-  ];
-
-  const BATCH = 5;
-  for (let i = 0; i < allChannels.length; i += BATCH) {
-    const batch = allChannels.slice(i, i + BATCH);
-    await Promise.all(batch.map(async (ch) => {
-      try {
-        const data = await apiGet('/activities', {
-          part: 'snippet,contentDetails',
-          channelId: ch.id,
-          maxResults: 5
-        });
-        (data.items || []).forEach(item => {
-          const upload = item.contentDetails && item.contentDetails.upload;
-          if (upload && upload.videoId) {
-            keibaAllVideos.push({
-              id: upload.videoId,
-              title: item.snippet.title,
-              description: item.snippet.description || '',
-              channel: item.snippet.channelTitle || ch.name,
-              thumb: item.snippet.thumbnails && item.snippet.thumbnails.medium
-                ? item.snippet.thumbnails.medium.url
-                : (item.snippet.thumbnails && item.snippet.thumbnails.default
-                  ? item.snippet.thumbnails.default.url : ''),
-              date: item.snippet.publishedAt,
-              cat: ch.cat
-            });
-          }
-        });
-      } catch {}
-    }));
-  }
-
-  // 日付順にソート
-  keibaAllVideos.sort((a, b) => new Date(b.date) - new Date(a.date));
-  renderKeibaVideos();
-}
-
-function filterKeiba(cat, btn) {
-  keibaCurrentCat = cat;
-  document.querySelectorAll('.keiba-cat-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  renderKeibaVideos();
-}
-
-function renderKeibaVideos() {
-  const el = document.getElementById('keiba-videos');
-  const videos = keibaCurrentCat === 'all'
-    ? keibaAllVideos
-    : keibaAllVideos.filter(v => v.cat === keibaCurrentCat);
-  const filtered = filterShorts(videos);
-  if (!filtered.length) {
-    el.innerHTML = '<div class="empty">動画がありません</div>';
-    return;
-  }
-  el.innerHTML = '<div class="video-grid">' + filtered.map(v => gridCardHTML(v, false)).join('') + '</div>';
-}
 
 // ===== FOR YOU =====
 const YT_CATEGORIES = {
@@ -1370,14 +1247,16 @@ async function loadRecentVideos() {
       }
     } catch(e) {}
 
-    // 重複除去・ショートフィルター・シャッフル（登録チャンネル優先）
+    // 重複除去・ショートフィルター・公開日時の新しい順にソート
     const seen = new Set();
     const subVideos = filterShorts(allVideos.filter(v => v.source === 'sub'));
     const trendVideosHome = filterShorts(allVideos.filter(v => v.source === 'trend'));
-    // 登録チャンネルを先に、その後トレンドを混ぜる
+
+    // 登録チャンネルの動画は新着順にソート
+    subVideos.sort((a, b) => new Date(b.date) - new Date(a.date));
+
     const merged = [];
     subVideos.forEach(v => { if (!seen.has(v.id)) { seen.add(v.id); merged.push(v); } });
-    // トレンドはランダムに間に挿入
     const shuffledTrend = shuffle(trendVideosHome);
     shuffledTrend.forEach(v => { if (!seen.has(v.id)) { seen.add(v.id); merged.push(v); } });
 
@@ -1978,14 +1857,13 @@ function shuffleQueue() { queue = shuffle(queue); currentVidIndex = -1; renderQu
 function switchTab(tab) {
   stopPreview();
   currentTab = tab;
-  ['home','keiba','trend','foryou','omakase','search','channels','history','queue'].forEach(t => {
+  ['home','trend','foryou','omakase','search','channels','history','queue'].forEach(t => {
     document.getElementById(`page-${t}`).style.display = t === tab ? '' : 'none';
   });
   document.querySelectorAll('.tab').forEach((el, i) => {
-    el.classList.toggle('active', ['home','keiba','trend','foryou','omakase','search','channels','history','queue'][i] === tab);
+    el.classList.toggle('active', ['home','trend','foryou','omakase','search','channels','history','queue'][i] === tab);
   });
   if (tab === 'trend' && !trendLoaded) loadTrend();
-  if (tab === 'keiba' && !keibaLoaded) loadKeiba();
   if (tab === 'foryou' && !forYouLoaded) loadForYou();
   if (tab === 'omakase') renderOmakaseKeywords();
   if (tab === 'search') renderSearchHistory();
