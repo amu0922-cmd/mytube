@@ -667,13 +667,24 @@ window.onload = () => {
       const saved = localStorage.getItem('yt_token');
       const expiry = parseInt(localStorage.getItem('yt_token_expiry') || '0');
       const noExpiry = expiry === 0;
-      if (saved && (noExpiry || Date.now() < expiry)) {
-        accessToken = saved;
-        onLoggedIn();
-      } else {
-        localStorage.removeItem('yt_token');
-        localStorage.removeItem('yt_token_expiry');
-        if (saved) showToast('セッション期限切れです。再ログインしてください');
+
+      if (saved) {
+        if (noExpiry || Date.now() < expiry) {
+          // トークン有効 → そのまま使用
+          accessToken = saved;
+          onLoggedIn();
+          scheduleTokenRefresh();
+        } else {
+          // 期限切れ → サイレント再取得を試みる（ポップアップなし）
+          accessToken = saved; // 一旦セットしてUIを表示
+          onLoggedIn();
+          // サイレント更新を即時実行
+          setTimeout(() => {
+            if (tokenClient) {
+              tokenClient.requestAccessToken({ prompt: '' });
+            }
+          }, 1000);
+        }
       }
     } else {
       setTimeout(tryInit, 300);
@@ -699,8 +710,10 @@ function initTokenClient() {
       localStorage.setItem('yt_token_expiry', Date.now() + 55 * 60 * 1000);
       if (isFirstLogin) {
         onLoggedIn();
+      } else {
+        // トークン更新のみ（再ログイン不要）
+        showToast('セッションを更新しました');
       }
-      // 50分後に自動サイレント更新をスケジュール
       scheduleTokenRefresh();
     }
   });
@@ -776,10 +789,14 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && accessToken) {
     const expiry = parseInt(localStorage.getItem('yt_token_expiry') || '0');
     const remaining = expiry - Date.now();
-    if (remaining < 5 * 60 * 1000) {
-      // 残り5分以下なら即更新
-      if (tokenClient) tokenClient.requestAccessToken({ prompt: '' });
+    // 残り10分以下または期限切れならサイレント更新
+    if (remaining < 10 * 60 * 1000) {
+      if (tokenClient) {
+        tokenClient.requestAccessToken({ prompt: '' });
+      }
     }
+    // タイマーが止まっていた場合に備えて再スケジュール
+    scheduleTokenRefresh();
   }
 });
 
