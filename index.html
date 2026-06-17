@@ -675,15 +675,20 @@ window.onload = () => {
           onLoggedIn();
           scheduleTokenRefresh();
         } else {
-          // 期限切れ → サイレント再取得を試みる（ポップアップなし）
-          accessToken = saved; // 一旦セットしてUIを表示
-          onLoggedIn();
-          // サイレント更新を即時実行
+          // 期限切れ → サイレント再取得してからonLoggedIn
+          accessToken = saved;
+          // UI だけ先に表示
+          document.getElementById('btn-login').style.display = 'none';
+          document.getElementById('btn-logout').style.display = '';
+          document.getElementById('home-login-gate').style.display = 'none';
+          document.getElementById('home-content').style.display = '';
+          document.getElementById('recent-videos').innerHTML = '<div class="loading"><div class="spinner"></div>セッションを復元中…</div>';
+          // サイレント更新 → callback内でonLoggedInが呼ばれる
+          subscriptions = [];
           setTimeout(() => {
-            if (tokenClient) {
-              tokenClient.requestAccessToken({ prompt: '' });
-            }
-          }, 1000);
+            if (tokenClient) tokenClient.requestAccessToken({ prompt: '' });
+            else onLoggedIn(); // フォールバック
+          }, 500);
         }
       }
     } else {
@@ -711,8 +716,16 @@ function initTokenClient() {
       if (isFirstLogin) {
         onLoggedIn();
       } else {
-        // トークン更新のみ（再ログイン不要）
-        showToast('セッションを更新しました');
+        // トークン更新後、チャンネルが空なら再取得
+        if (!subscriptions.length) {
+          onLoggedIn();
+        } else {
+          // チャンネルはあるのでUIだけ更新
+          document.getElementById('btn-login').style.display = 'none';
+          document.getElementById('btn-logout').style.display = '';
+          document.getElementById('home-login-gate').style.display = 'none';
+          document.getElementById('home-content').style.display = '';
+        }
       }
       scheduleTokenRefresh();
     }
